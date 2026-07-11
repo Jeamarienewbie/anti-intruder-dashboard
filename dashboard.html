@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>IDS Alert System | Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0c10; --card: #14171c; --card2: #1a1e26;
+            --primary: #3b82f6; --red: #ef4444; --green: #10b981; --orange: #f59e0b;
+            --text: #f8fafc; --muted: #94a3b8; --border: rgba(255,255,255,0.06);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        html, body { height:100%; }
+        body { font-family:'Outfit',sans-serif; background:var(--bg); color:var(--text); }
+
+        /* ── LAYOUT ── */
+        .main { flex:1; display:flex; flex-direction:column; overflow-y:auto; height:100vh; scroll-behavior: smooth; }
+        .content-container { max-width:1200px; margin:0 auto; width:100%; padding:24px 28px; }
+        
+        .topbar {
+            position: sticky; top:0; z-index:1000;
+            display:flex; align-items:center; justify-content:space-between; padding:16px 28px;
+            background:rgba(20,23,28,0.8); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); flex-shrink:0;
+        }
+        .topbar-left { display:flex; align-items:center; gap:14px; }
+        .page-title { font-size:1.3rem; font-weight:700; }
+        .topbar-right { display:flex; align-items:center; gap:10px; }
+        .tag { font-size:0.72rem; color:var(--muted); background:var(--card2); padding:5px 12px; border-radius:100px; border:1px solid var(--border); }
+
+        /* ── PAGES ── */
+        .section-header { display:flex; align-items:center; gap:12px; margin:40px 0 20px 0; color:var(--text); }
+        .section-header i { font-size:1.4rem; }
+        .section-header h2 { font-size:1.2rem; font-weight:700; }
+        .section-header .line { flex:1; height:1px; background:var(--border); }
+        
+        .page { display:block !important; padding:0; margin-bottom:40px; }
+
+        /* ── CARDS & GRID ── */
+        .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px; }
+        .kpi { background:var(--card); border-radius:18px; padding:20px; border:1px solid var(--border); }
+        .kpi-label { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+        .kpi-val { font-size:1.9rem; font-weight:700; line-height:1; }
+        .kpi-sub { font-size:0.72rem; color:var(--muted); margin-top:6px; }
+
+        .main-grid { display:grid; grid-template-columns:1fr 360px; gap:16px; }
+        .card { background:var(--card); border-radius:20px; padding:22px; border:1px solid var(--border); margin-bottom:16px; }
+        .card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+        .card-title { font-size:0.95rem; font-weight:600; }
+
+        /* ── INTRUSION TABLE ── */
+        .event-table { width:100%; border-collapse:collapse; }
+        .event-table th { font-size:0.68rem; text-transform:uppercase; color:var(--muted); letter-spacing:0.5px; padding:8px 10px; border-bottom:1px solid var(--border); text-align:left; }
+        .event-table td { padding:12px 10px; font-size:0.85rem; border-bottom:1px solid rgba(255,255,255,0.03); }
+        .event-table tr:last-child td { border:none; }
+        .event-table tr:hover td { background:rgba(255,255,255,0.02); }
+        .badge { padding:3px 10px; border-radius:100px; font-size:0.7rem; font-weight:700; }
+        .badge-red { background:rgba(239,68,68,0.15); color:var(--red); }
+        .badge-grn { background:rgba(16,185,129,0.15); color:var(--green); }
+        .empty-state { text-align:center; padding:40px; color:var(--muted); font-size:0.88rem; }
+
+        /* ── TELEMETRY CHART ── */
+        canvas { width:100% !important; border-radius:12px; }
+        .chart-wrap { position:relative; height:160px; margin-bottom:16px; }
+
+        /* ── DISTANCE RADAR ── */
+        .radar-wrap { position:relative; height:120px; background:rgba(0,0,0,0.3); border-radius:14px; overflow:hidden; border:1px solid var(--border); margin-bottom:12px; }
+        .radar-fill { position:absolute; bottom:0; left:0; right:0; transition:height 0.6s cubic-bezier(0.16,1,0.3,1); background:linear-gradient(to top, var(--primary), rgba(59,130,246,0.2)); }
+        .radar-val { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:2.2rem; font-weight:800; text-shadow:0 4px 15px rgba(0,0,0,0.8); }
+
+        /* ── ALERT BANNER ── */
+        .alert-banner { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:16px; padding:16px 20px; margin-bottom:16px; display:none; animation:banner-in 0.3s ease; }
+        @keyframes banner-in { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+        .alert-banner.show { display:flex; align-items:center; gap:14px; }
+        .alert-icon { font-size:1.8rem; }
+        .alert-info h4 { color:var(--red); font-size:1rem; }
+        .alert-info p { font-size:0.8rem; color:var(--muted); margin-top:2px; }
+
+        /* ── SETTINGS PAGE ── */
+        .setting-row { display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px solid var(--border); gap: 15px; }
+        .setting-row:last-child { border:none; }
+        .setting-label { font-size:0.9rem; font-weight:600; }
+        .setting-desc { font-size:0.75rem; color:var(--muted); margin-top:3px; }
+        .toggle { width:44px; height:24px; background:var(--green); border-radius:12px; position:relative; cursor:pointer; border:none; transition:0.2s; flex-shrink:0; }
+        .toggle::after { content:''; position:absolute; top:3px; right:3px; width:18px; height:18px; background:#fff; border-radius:9px; transition:0.2s; }
+        .toggle.off { background:var(--border); }
+        .toggle.off::after { right:auto; left:3px; }
+
+        /* ── STATUS PILL ── */
+        .status-pill { display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.15); }
+        .status-dot { width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0; animation:blink 2s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .status-label { font-size:0.7rem; color:var(--green); font-weight:600; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width:1100px) { 
+            .kpi-row { grid-template-columns: repeat(2, 1fr); } 
+            .main-grid { grid-template-columns: 1fr; } 
+        }
+        @media (max-width:700px) { 
+            .content-container { padding: 12px 16px; } 
+            .topbar { padding: 12px 16px; min-height: 60px; }
+            .page-title { font-size: 1.1rem; }
+            .kpi-row { gap: 10px; margin-bottom: 16px; }
+            .kpi { padding: 16px; }
+            .kpi-val { font-size: 1.5rem; }
+            .section-header { margin: 24px 0 16px 0; }
+            .section-header h2 { font-size: 1.05rem; }
+            
+            /* Table responsiveness */
+            #recent-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .event-table { min-width: 500px; }
+        }
+        @media (max-width:480px) { 
+            .kpi-row { grid-template-columns: 1fr; }
+            .topbar-right .tag { display: none; } /* Hide time/date to save space on very small screens */
+            .topbar-right #sidebar-status { margin-right:0; }
+            .page-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+        }
+
+        ::-webkit-scrollbar { width:5px; } ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:10px; }
+
+        #ip-config { display:none; position:fixed; bottom:20px; right:20px; background:var(--card); border:1px solid rgba(59,130,246,0.4); border-radius:16px; padding:14px 18px; z-index:9999; box-shadow:0 10px 40px rgba(0,0,0,0.6); }
+        #ip-config p { font-size:0.72rem; color:var(--muted); margin-bottom:8px; }
+        #ip-config input { background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:8px; padding:7px 11px; color:#fff; font-size:0.82rem; outline:none; font-family:monospace; width:130px; }
+        #ip-config button { background:var(--primary); border:none; border-radius:8px; padding:7px 12px; color:#fff; font-weight:600; cursor:pointer; font-size:0.82rem; margin-left:6px; }
+    </style>
+</head>
+<body>
+
+<!-- MAIN -->
+<div class="main">
+    <div class="topbar">
+        <div class="topbar-left">
+            <div style="font-size:1.2rem;margin-right:8px">🛡️</div>
+            <h1 class="page-title">S3-GUARD SYSTEM</h1>
+        </div>
+        <div class="topbar-right">
+            <div class="status-pill" id="sidebar-status">
+                <div class="status-dot"></div>
+                <span class="status-label">ONLINE</span>
+            </div>
+            <span class="tag" id="topbar-time">--:--:--</span>
+        </div>
+    </div>
+
+    <div class="content-container">
+
+    <!-- ═══════════════ DASHBOARD PAGE ═══════════════ -->
+    <div class="page active" id="page-dashboard">
+        <div class="alert-banner" id="alert-banner">
+            <div class="alert-icon">🏃</div>
+            <div class="alert-info">
+                <h4>Intrusion Detected</h4>
+                <p id="banner-meta">Object detected within range</p>
+            </div>
+        </div>
+
+        <!-- KPI Row -->
+        <div class="kpi-row">
+            <div class="kpi"><div class="kpi-label">Total Intrusions</div><div class="kpi-val" id="kpi-count">0</div><div class="kpi-sub">This session</div></div>
+            <div class="kpi"><div class="kpi-label">Current Distance</div><div class="kpi-val" id="kpi-dist">-- <span style="font-size:1rem">cm</span></div><div class="kpi-sub">Ultrasonic sensor</div></div>
+            <div class="kpi"><div class="kpi-label">Uptime</div><div class="kpi-val" id="kpi-up">0s</div><div class="kpi-sub">Since last boot</div></div>
+            <div class="kpi"><div class="kpi-label">Signal</div><div class="kpi-val" id="kpi-rssi">--</div><div class="kpi-sub" id="kpi-rssi-sub">dBm</div></div>
+        </div>
+
+        <div class="main-grid">
+            <!-- LEFT -->
+            <div>
+                <!-- Telemetry Chart -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="card-title">📡 Live Distance Telemetry</span>
+                        <span style="font-size:0.72rem;color:var(--muted)">Last 60 seconds</span>
+                    </div>
+                    <div class="chart-wrap"><canvas id="telemetry-chart"></canvas></div>
+                </div>
+
+                <!-- Recent Intrusions -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="card-title">Recent Intrusions</span>
+                    </div>
+                    <div id="recent-table-wrap">
+                        <div class="empty-state" id="recent-empty">No intrusions recorded this session.</div>
+                        <table class="event-table" id="recent-table" style="display:none">
+                            <thead><tr><th>Time</th><th>Distance</th><th>PIR</th><th>Severity</th></tr></thead>
+                            <tbody id="recent-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT -->
+            <div>
+                <!-- Live Radar -->
+                <div class="card">
+                    <div class="card-head"><span class="card-title">Proximity Radar</span></div>
+                    <div class="radar-wrap">
+                        <div class="radar-fill" id="radar-fill" style="height:0%"></div>
+                        <div class="radar-val"><span id="radar-dist">--</span><span style="font-size:1rem">cm</span></div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+                        <div style="background:var(--card2);padding:12px;border-radius:14px;text-align:center">
+                            <div style="font-size:0.68rem;color:var(--muted);margin-bottom:4px">PIR STATUS</div>
+                            <div id="pir-status" style="font-size:0.9rem;font-weight:700;color:var(--green)">CLEAR</div>
+                        </div>
+                        <div style="background:var(--card2);padding:12px;border-radius:14px;text-align:center">
+                            <div style="font-size:0.68rem;color:var(--muted);margin-bottom:4px">ZONE</div>
+                            <div id="zone-status" style="font-size:0.9rem;font-weight:700;color:var(--green)">SAFE</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Device Info -->
+                <div class="card">
+                    <div class="card-head"><span class="card-title">Device Info</span></div>
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                        <div style="display:flex;justify-content:space-between;font-size:0.83rem"><span style="color:var(--muted)">Device ID</span><span style="font-weight:600">S3-GUARD-01</span></div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.83rem"><span style="color:var(--muted)">Model</span><span>ESP32-S3</span></div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.83rem"><span style="color:var(--muted)">Firmware</span><span>v2.0.0</span></div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.83rem"><span style="color:var(--muted)">PIR Pin</span><span>GPIO 5</span></div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.83rem"><span style="color:var(--muted)">Trig/Echo</span><span>GPIO 2 / 1</span></div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.83rem"><span style="color:var(--muted)">Alert Range</span><span style="color:var(--orange);font-weight:600">&lt; 80 cm</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <div class="section-header"><i>🚨</i><h2>Alert Center</h2><div class="line"></div></div>
+    <div class="page" id="page-alerts">
+        <div style="margin-bottom:20px;display:flex;align-items:center;gap:12px">
+            <span style="background:rgba(239,68,68,0.1);color:var(--red);padding:5px 14px;border-radius:100px;font-size:0.78rem;font-weight:700;border:1px solid rgba(239,68,68,0.2)" id="alert-filter-all">All</span>
+            <span style="background:var(--card2);color:var(--muted);padding:5px 14px;border-radius:100px;font-size:0.78rem;cursor:pointer">High</span>
+            <span style="background:var(--card2);color:var(--muted);padding:5px 14px;border-radius:100px;font-size:0.78rem;cursor:pointer">Medium</span>
+        </div>
+        <div id="alerts-list"><div class="empty-state">Monitor is active. No intrusions detected yet.</div></div>
+    </div>
+
+        <div class="section-header"><i>🕒</i><h2>Event Timeline</h2><div class="line"></div></div>
+    <div class="page" id="page-history">
+        <div class="card">
+            <div class="card-head"><span class="card-title">Session History</span><span style="font-size:0.72rem;color:var(--muted)" id="history-count">0 events</span></div>
+            <div id="history-list"><div class="empty-state">Waiting for device data or intrusion events...</div></div>
+        </div>
+    </div>
+
+        <div class="section-header"><i>📈</i><h2>Real-time Analytics</h2><div class="line"></div></div>
+    <div class="page" id="page-analytics">
+        <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">
+            <div class="kpi"><div class="kpi-label">Peak Distance</div><div class="kpi-val" id="an-peak">--<span style="font-size:1rem">cm</span></div></div>
+            <div class="kpi"><div class="kpi-label">Min Distance</div><div class="kpi-val" id="an-min">--<span style="font-size:1rem">cm</span></div></div>
+            <div class="kpi"><div class="kpi-label">Avg Distance</div><div class="kpi-val" id="an-avg">--<span style="font-size:1rem">cm</span></div></div>
+        </div>
+        <div class="card">
+            <div class="card-head"><span class="card-title">Distance Distribution</span></div>
+            <div class="chart-wrap"><canvas id="analytics-chart"></canvas></div>
+        </div>
+    </div>
+
+        <div class="section-header"><i>🔌</i><h2>Hardware Matrix</h2><div class="line"></div></div>
+    <div class="page" id="page-device">
+        <div class="main-grid">
+            <div class="card">
+                <div class="card-head"><span class="card-title">🔌 Hardware Status</span></div>
+                <div style="display:flex;flex-direction:column;gap:14px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--card2);border-radius:14px">
+                        <div><div style="font-weight:600;font-size:0.9rem">PIR Sensor</div><div style="font-size:0.72rem;color:var(--muted)">GPIO 5 • Motion Detection</div></div>
+                        <span class="badge badge-grn" id="hw-pir">ACTIVE</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--card2);border-radius:14px">
+                        <div><div style="font-weight:600;font-size:0.9rem">Ultrasonic Sensor</div><div style="font-size:0.72rem;color:var(--muted)">Trig:2 Echo:1 • Distance</div></div>
+                        <span class="badge badge-grn" id="hw-ultra">ACTIVE</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--card2);border-radius:14px">
+                        <div><div style="font-weight:600;font-size:0.9rem">LED Indicator</div><div style="font-size:0.72rem;color:var(--muted)">GPIO 41 • Active Low</div></div>
+                        <span class="badge" id="hw-led" style="background:rgba(255,255,255,0.05);color:var(--muted)">STANDBY</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--card2);border-radius:14px">
+                        <div><div style="font-weight:600;font-size:0.9rem">Buzzer</div><div style="font-size:0.72rem;color:var(--muted)">GPIO 42 • Alert Sound</div></div>
+                        <span class="badge" id="hw-buzzer" style="background:rgba(255,255,255,0.05);color:var(--muted)">STANDBY</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-head"><span class="card-title">Live Connection</span></div>
+                <div style="display:flex;flex-direction:column;gap:12px;font-size:0.85rem">
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">ESP32 IP</span><span id="dev-ip" style="font-family:monospace;font-weight:600">--</span></div>
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Signal (RSSI)</span><span id="dev-rssi">--</span></div>
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Uptime</span><span id="dev-up">--</span></div>
+                    <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Intrusions</span><span id="dev-count">--</span></div>
+                    <div style="margin-top:8px;padding-top:12px;border-top:1px solid var(--border)">
+                        <div style="font-size:0.72rem;color:var(--muted);margin-bottom:6px">Signal Strength</div>
+                        <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden">
+                            <div id="rssi-bar" style="height:100%;background:var(--green);transition:0.5s;width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <div class="section-header"><i>⚙️</i><h2>System Settings</h2><div class="line"></div></div>
+    <div class="page" id="page-settings">
+        <div class="card">
+            <div class="card-head"><span class="card-title">System Configuration</span></div>
+            <div class="setting-row">
+                <div><div class="setting-label">Alert Threshold</div><div class="setting-desc">Trigger distance for intrusion (cm)</div></div>
+                <div style="display:flex;align-items:center;gap:8px"><input id="threshold-val" type="number" value="80" min="10" max="400" style="width:70px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:#fff;font-size:0.85rem;outline:none"><span style="font-size:0.8rem;color:var(--muted)">cm</span></div>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">Sound Alerts</div><div class="setting-desc">Enable buzzer on detection</div></div>
+                <button class="toggle" id="tog-sound"></button>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">Auto-Refresh Logs</div><div class="setting-desc">Reload event logs every 10s</div></div>
+                <button class="toggle" id="tog-refresh"></button>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">Debug Mode</div><div class="setting-desc">Show IP config panel</div></div>
+                <button class="toggle off" id="tog-debug" onclick="toggleDebug(this)"></button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head"><span class="card-title">ESP32 Connection</span></div>
+            <div style="display:flex;gap:10px;">
+                <input id="settings-ip" type="text" placeholder="192.168.4.1" value="192.168.4.1" style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:#fff;font-size:0.85rem;outline:none;font-family:monospace">
+                <button onclick="applyIPFromSettings()" style="background:var(--primary);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-weight:600;cursor:pointer">Connect</button>
+            </div>
+        </div>
+    </div> <!-- end content-container -->
+</div>
+
+<!-- IP CONFIG BOX (debug) -->
+<div id="ip-config">
+    <p>🔧 Debug Mode: Enter ESP32 IP</p>
+    <div><input id="esp-ip" type="text" placeholder="192.168.4.1" value="192.168.4.1"><button onclick="applyIP()">Connect</button></div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────
+const urlParams = new URLSearchParams(window.location.search);
+let ESP_IP = urlParams.get('ip') || urlParams.get('esp') || '';
+if(ESP_IP && !ESP_IP.startsWith('http')) ESP_IP = 'http://' + ESP_IP;
+
+const isFilePath = window.location.protocol === 'file:';
+const isLocalhost = ['localhost','127.0.0.1',''].includes(window.location.hostname);
+
+if(ESP_IP) {
+    document.getElementById('ip-config').style.display = 'block';
+    document.getElementById('esp-ip').value = ESP_IP.replace(/^https?:\/\//, '');
+} else if(isFilePath || isLocalhost) {
+    document.getElementById('ip-config').style.display = 'block';
+    ESP_IP = 'http://192.168.4.1';
+} else {
+    document.getElementById('ip-config').style.display = 'block';
+    document.getElementById('tog-debug').classList.remove('off');
+}
+
+let eventLog = [];       // in-memory session event log
+let persistentLogs = []; // logs fetched from hardware
+let distHistory = [];    // distance history for chart
+let lastMotion = false;
+let threshold = 80;
+let lastFetchLogs = 0;
+
+// ── CHART SETUP ────────────────────────────────────────────
+function makeChart(canvasId, label, color) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    return { canvas, ctx, data: new Array(60).fill(null), label, color };
+}
+const telChart = makeChart('telemetry-chart', 'Distance', '#3b82f6');
+const anaChart = makeChart('analytics-chart', 'Distance', '#6366f1');
+
+function drawChart(chart) {
+    const { canvas, ctx, data, color } = chart;
+    const dpr = window.devicePixelRatio || 1;
+    const parent = canvas.parentElement;
+    canvas.width = parent.clientWidth * dpr;
+    canvas.height = parent.clientHeight * dpr;
+    ctx.scale(dpr, dpr);
+    const W = parent.clientWidth, H = parent.clientHeight;
+    ctx.clearRect(0, 0, W, H);
+
+    const valid = data.filter(v => v !== null);
+    if(valid.length < 2) { ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='13px Outfit'; ctx.textAlign='center'; ctx.fillText('Waiting for data...', W/2, H/2); return; }
+
+    const max = Math.max(...valid, 100);
+    const step = W / (data.length - 1);
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    for(let i = 0; i <= 4; i++) {
+        const y = H - (i / 4) * (H - 24) - 4;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='10px monospace'; ctx.textAlign='right';
+        ctx.fillText(Math.round((i/4)*max)+'cm', W-4, y-3);
+    }
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, color + '55');
+    grad.addColorStop(1, 'transparent');
+    ctx.beginPath();
+    let started = false;
+    data.forEach((v, i) => {
+        if(v === null) return;
+        const x = i * step, y = H - (v / max) * (H - 24) - 4;
+        if(!started) { ctx.moveTo(x, H); ctx.lineTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+    });
+    ctx.lineTo((data.length-1)*step, H);
+    ctx.closePath();
+    ctx.fillStyle = grad; ctx.fill();
+
+    // Line
+    ctx.beginPath(); started = false;
+    data.forEach((v, i) => {
+        if(v === null) return;
+        const x = i * step, y = H - (v / max) * (H - 24) - 4;
+        if(!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke();
+}
+
+// ── UPDATE STATUS ──────────────────────────────────────────
+function update() {
+    fetch(ESP_IP + '/status')
+        .then(r => r.json())
+        .then(d => {
+            setOnline(true);
+            const dist = Math.round(d.dist);
+            const isAlert = d.motion === true || d.motion === 'true';
+
+            // Push to chart history
+            telChart.data.push(dist >= 400 ? null : dist);
+            if(telChart.data.length > 60) telChart.data.shift();
+            distHistory.push(dist);
+            if(distHistory.length > 500) distHistory.shift();
+
+            // KPIs
+            el('kpi-count').innerText = d.count;
+            el('kpi-dist').innerHTML = dist + '<span style="font-size:1rem">cm</span>';
+            el('kpi-up').innerText = fmtTime(d.uptime);
+            el('kpi-rssi').innerText = d.rssi !== undefined ? d.rssi : '--';
+
+            // Radar
+            el('radar-dist').innerText = dist;
+            const pct = Math.max(0, Math.min(100, 100 - (dist/400*100)));
+            el('radar-fill').style.height = pct + '%';
+            el('radar-fill').style.background = dist < 80 ? 'linear-gradient(to top,rgba(239,68,68,0.8),rgba(239,68,68,0.1))' : 'linear-gradient(to top,rgba(59,130,246,0.8),rgba(59,130,246,0.1))';
+
+            // PIR & Zone
+            el('pir-status').innerText = isAlert ? 'TRIGGERED' : 'CLEAR';
+            el('pir-status').style.color = isAlert ? 'var(--red)' : 'var(--green)';
+            el('zone-status').innerText = dist < threshold ? 'BREACH' : 'SAFE';
+            el('zone-status').style.color = dist < threshold ? 'var(--red)' : 'var(--green)';
+
+            // Alert banner
+            const banner = el('alert-banner');
+            if(isAlert) { 
+                banner.classList.add('show'); 
+                el('banner-meta').innerText = 'Object at ' + dist + 'cm'; 
+            } else { 
+                banner.classList.remove('show'); 
+            }
+
+            // Log NEW intrusion event (Session)
+            if(isAlert && !lastMotion) {
+                const event = { 
+                    time: new Date(), 
+                    uptime: d.uptime,
+                    dist, 
+                    severity: dist < 30 ? 'High' : dist < 60 ? 'Medium' : 'Low',
+                    isSession: true 
+                };
+                eventLog.unshift(event);
+                // el('alert-count-badge').innerText = eventLog.length; // Moved to renderEventLog
+                renderEventLog();
+            }
+            lastMotion = isAlert;
+
+            // Hardware statuses on device page
+            el('hw-led').className = 'badge ' + (isAlert ? 'badge-red' : 'badge-grn');
+            el('hw-led').innerText = isAlert ? 'TRIGGERED' : 'STANDBY';
+            el('hw-buzzer').className = 'badge ' + (isAlert ? 'badge-red' : '');
+            el('hw-buzzer').style.cssText = isAlert ? '' : 'background:rgba(255,255,255,0.05);color:var(--muted)';
+            el('hw-buzzer').innerText = isAlert ? 'ACTIVE' : 'STANDBY';
+            el('dev-ip').innerText = ESP_IP || window.location.hostname;
+            el('dev-rssi').innerText = (d.rssi || '--') + ' dBm';
+            el('dev-up').innerText = fmtTime(d.uptime);
+            el('dev-count').innerText = d.count;
+            if(d.rssi) { 
+                const w = Math.min(100, Math.max(0, (d.rssi + 100) * 2)); 
+                el('rssi-bar').style.width = w + '%'; 
+                el('rssi-bar').style.background = w > 60 ? 'var(--green)' : w > 30 ? 'var(--orange)' : 'var(--red)'; 
+            }
+
+            // Analytics
+            const liveValid = distHistory.filter(v => v < 400 && v > 0);
+            const persistValid = persistentLogs.map(p => p.dist).filter(v => v < 400 && v > 0);
+            const allValid = [...liveValid, ...persistValid];
+            
+            if(allValid.length) {
+                el('an-peak').innerHTML = Math.max(...allValid).toFixed(1) + '<span style="font-size:1rem">cm</span>';
+                el('an-min').innerHTML = Math.min(...allValid).toFixed(1) + '<span style="font-size:1rem">cm</span>';
+                el('an-avg').innerHTML = (allValid.reduce((a,b)=>a+b)/allValid.length).toFixed(1) + '<span style="font-size:1rem">cm</span>';
+                
+                // For chart, we still prefer the live telemetry if available
+                anaChart.data = distHistory.length > 30 ? distHistory.slice(-60).map(v => v >= 400 ? null : v) : persistentLogs.slice(0,60).map(p => p.dist).reverse();
+            }
+
+            drawChart(telChart);
+            drawChart(anaChart);
+
+            // Fetch persistent logs every 10 seconds
+            if(Date.now() - lastFetchLogs > 10000) {
+                fetchLogs();
+            }
+        })
+        .catch(() => setOnline(false));
+}
+
+function fetchLogs() {
+    lastFetchLogs = Date.now();
+    fetch(ESP_IP + '/logs')
+        .then(r => r.text())
+        .then(text => {
+            const lines = text.split('\n').filter(l => l.trim() !== '');
+            persistentLogs = lines.map(line => {
+                // Format: [123s] ALERT! DIST:45.5
+                const timeMatch = line.match(/\[(\d+)s\]/);
+                const distMatch = line.match(/DIST:([\d.]+)/);
+                const ut = timeMatch ? parseInt(timeMatch[1]) : 0;
+                const d = distMatch ? parseFloat(distMatch[1]) : 0;
+                return {
+                    uptime: ut,
+                    dist: d,
+                    severity: d < 30 ? 'High' : d < 60 ? 'Medium' : 'Low',
+                    isSession: false,
+                    raw: line
+                };
+            }).reverse();
+            renderEventLog();
+        })
+        .catch(err => console.error("Error fetching logs:", err));
+}
+
+function renderEventLog() {
+    // Merge session alerts and persistent logs, removing duplicates based on uptime
+    const merged = [...eventLog];
+    persistentLogs.forEach(p => {
+        if(!merged.find(m => Math.abs(m.uptime - p.uptime) < 2)) {
+            merged.push(p);
+        }
+    });
+    merged.sort((a,b) => b.uptime - a.uptime);
+
+    // Update alert badge
+    const badge = el('alert-count-badge');
+    badge.innerText = merged.length;
+    badge.classList.toggle('show', merged.length > 0);
+
+    // Recent table (Dashboard)
+    const tbody = el('recent-tbody'), empty = el('recent-empty'), table = el('recent-table');
+    if(merged.length === 0) { empty.style.display='block'; table.style.display='none'; return; }
+    empty.style.display = 'none'; table.style.display = 'table';
+    tbody.innerHTML = '';
+    merged.slice(0, 8).forEach(e => {
+        const cls = e.severity==='High' ? 'badge-red' : e.severity==='Medium' ? 'badge-org' : 'badge-grn';
+        const tr = document.createElement('tr');
+        const timeStr = e.isSession ? fmtDateTime(e.time) : `Up: ${fmtTime(e.uptime)}`;
+        tr.innerHTML = `<td>${timeStr}</td><td style="font-weight:600">${Math.round(e.dist)}cm</td><td><span class="badge badge-grn">YES</span></td><td><span class="badge ${cls}">${e.severity}</span></td>`;
+        tbody.appendChild(tr);
+    });
+
+    // Alerts page
+    const al = el('alerts-list');
+    al.innerHTML = '';
+    merged.forEach(e => {
+        const cls = e.severity==='High' ? 'badge-red' : e.severity==='Medium' ? 'badge-org' : 'badge-grn';
+        const timeStr = e.isSession ? fmtDateTime(e.time) : `Device Uptime: ${fmtTime(e.uptime)}`;
+        al.innerHTML += `<div class="alert-list-item"><div class="al-icon">🚨</div><div class="al-body"><div class="al-title">Intrusion Detected</div><div class="al-meta">${timeStr}</div></div><div><span class="badge ${cls}">${e.severity}</span><div class="al-dist" style="margin-top:4px">${Math.round(e.dist)}cm</div></div></div>`;
+    });
+
+    // History page (LIMIT TO 50 FOR PERFORMANCE)
+    const hl = el('history-list');
+    el('history-count').innerText = merged.length + ' events total';
+    hl.innerHTML = merged.length === 0 ? '<div class="empty-state">No history yet.</div>' : '';
+    
+    merged.slice(0, 50).forEach((e, i) => {
+        const timeStr = e.isSession ? fmtDateTime(e.time) : `Uptime: ${fmtTime(e.uptime)}`;
+        hl.innerHTML += `<div style="display:flex;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);font-size:0.84rem;background:rgba(255,255,255,0.01);margin-bottom:4px;border-radius:8px"><div><strong style="color:var(--primary)">#${merged.length - i}</strong> Intrusion at ${Math.round(e.dist)}cm</div><div style="color:var(--muted)">${timeStr}</div></div>`;
+    });
+
+    if(merged.length > 50) {
+        hl.innerHTML += `<div style="text-align:center;padding:20px;color:var(--muted);font-size:0.75rem">Showing recent 50 events. <a href="${ESP_IP}/logs" target="_blank" style="color:var(--primary);text-decoration:none;font-weight:600">View Full Raw Logs ›</a></div>`;
+    }
+}
+
+// ── CONNECTION STATUS ──────────────────────────────────────
+function setOnline(online) {
+    const pill = el('sidebar-status');
+    pill.className = 'status-pill ' + (online ? '' : 'offline');
+    pill.innerHTML = '<div class="status-dot"></div><span class="status-label">' + (online ? 'System Online' : 'Offline') + '</span>';
+}
+
+// ── SIDEBAR NAVIGATION ─────────────────────────────────────
+function showPage(name, btn) {
+    const el = document.getElementById('page-' + name);
+    if(el) el.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ── HELPERS ───────────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+function fmtTime(s) { if(s < 60) return s+'s'; if(s < 3600) return Math.floor(s/60)+'m '+( s%60)+'s'; return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m'; }
+function fmtDateTime(d) { return d.toLocaleTimeString() + ' · ' + d.toLocaleDateString(); }
+
+function applyIP() {
+    let v = el('esp-ip').value.trim();
+    if(!v.startsWith('http')) v = 'http://' + v;
+    ESP_IP = v; el('settings-ip').value = el('esp-ip').value.trim();
+    update();
+}
+function applyIPFromSettings() {
+    let v = el('settings-ip').value.trim();
+    if(!v.startsWith('http')) v = 'http://' + v;
+    ESP_IP = v; el('esp-ip').value = el('settings-ip').value.trim();
+    update();
+}
+function toggleDebug(btn) {
+    btn.classList.toggle('off');
+    el('ip-config').style.display = btn.classList.contains('off') ? 'none' : 'block';
+}
+
+// Clock
+function updateClock() {
+    const now = new Date();
+    el('topbar-time').innerText = now.toLocaleTimeString();
+    el('topbar-date').innerText = now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+// Re-draw charts on resize
+window.addEventListener('resize', () => { drawChart(telChart); drawChart(anaChart); });
+setInterval(update, 500);
+setInterval(updateClock, 1000);
+updateClock(); update(); renderEventLog();
+</script>
+</body>
+</html>
