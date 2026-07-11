@@ -34,13 +34,22 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 .sidebar .status-dot{width:8px;height:8px;border-radius:50%;animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
 
+/* ── HAMBURGER ── */
+.hamburger{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:4px;background:none;border:none;flex-shrink:0}
+.hamburger span{display:block;width:20px;height:2px;background:var(--text);border-radius:2px;transition:all 0.3s}
+.hamburger.open span:nth-child(1){transform:rotate(45deg) translate(4px,4px)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:rotate(-45deg) translate(4px,-4px)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99;opacity:0;transition:opacity 0.3s}
+.sidebar-overlay.show{display:block;opacity:1}
+
 /* ── MAIN ── */
 .main{flex:1;display:flex;flex-direction:column;overflow-y:auto;height:100vh}
 .topbar{
   position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
   padding:14px 28px;background:rgba(8,11,18,0.7);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);flex-shrink:0
 }
-.topbar-left{display:flex;align-items:center;gap:14px}
+.topbar-left{display:flex;align-items:center;gap:10px}
 .topbar-left h1{font-size:1.15rem;font-weight:700;background:linear-gradient(135deg,var(--text),var(--muted));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .topbar-right{display:flex;align-items:center;gap:14px}
 .clock{font-size:0.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -157,6 +166,27 @@ tr:hover td{background:rgba(255,255,255,0.01)}
 .ip-input:focus{border-color:var(--primary)}
 .btn{background:var(--primary);border:none;border-radius:8px;padding:9px 16px;color:#fff;font-weight:600;cursor:pointer;font-size:0.82rem;transition:all 0.2s}
 .btn:hover{background:#2563eb;box-shadow:0 4px 20px rgba(59,130,246,0.3)}
+@media(max-width:1100px){.content-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){
+  .hamburger{display:flex}
+  .sidebar{position:fixed;left:-80px;top:0;bottom:0;height:100vh;transition:left 0.3s;z-index:100}
+  .sidebar.open{left:0;box-shadow:4px 0 30px rgba(0,0,0,0.5)}
+  .sidebar .nav-item.active::before{left:auto;right:0;border-radius:3px 0 0 3px}
+  .pages{padding:14px 16px}.topbar{padding:10px 16px;gap:8px}
+  .topbar-left h1{font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+  .topbar-right{gap:8px}.clock{font-size:0.65rem}
+  .kpi-grid{gap:10px;grid-template-columns:repeat(2,1fr)}
+  .kpi-card{padding:14px 16px}.kpi-card .value{font-size:1.3rem}
+  .dual-grid{grid-template-columns:1fr}.hw-grid{grid-template-columns:1fr}
+  .filter-bar{gap:6px}.filter-bar span{font-size:0.65rem;padding:3px 10px}
+  .history-item{padding:10px 12px}.history-item .h-title{font-size:0.75rem}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr}
+  .topbar-left h1{max-width:90px;font-size:0.78rem}
+  .status-badge{padding:3px 8px;font-size:0.6rem}
+  .clock{display:none}
+}
 </style>
 </head>
 <body>
@@ -172,9 +202,10 @@ tr:hover td{background:rgba(255,255,255,0.01)}
   </div>
 </div>
 
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
 <div class="main">
   <div class="topbar">
-    <div class="topbar-left"><h1>S3-GUARD INTRUSION SYSTEM</h1></div>
+    <div class="topbar-left"><button class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Toggle menu"><span></span><span></span><span></span></button><h1>S3-GUARD</h1></div>
     <div class="topbar-right">
       <div class="status-badge" id="top-status"><span style="font-size:0.7rem">&#x25cf;</span> <span id="status-text">ONLINE</span></div>
       <span class="clock" id="clock">--:--:--</span>
@@ -308,7 +339,8 @@ function renderHistory(a){var b=el('history-list');el('history-count').innerText
 function filterHistory(a,b){currentFilter=a;var c=document.querySelectorAll('.filter-bar span');c.forEach(function(a){a.classList.remove('active')});if(b)b.classList.add('active');else document.querySelector('.filter-bar [data-filter="'+a+'"]').classList.add('active');renderHistory([].concat(eventLog).concat(persistentLogs).sort(function(a,b){return b.uptime-a.uptime}))}
 function updateStats(){var a=eventLog.length+persistentLogs.length,b=distHistory.filter(function(a){return a<400&&a>0});if(b.length<2){el('stats-summary').innerHTML='Collecting more data...';return}var c=Math.max.apply(null,b),d=Math.min.apply(null,b),e=b.reduce(function(a,b){return a+b})/b.length;el('stats-summary').innerHTML='<span style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;text-align:center"><span><span style="display:block;font-size:1.4rem;font-weight:700;color:var(--orange)">'+a+'</span><span style="font-size:0.68rem;color:var(--muted)">Total Events</span></span><span><span style="display:block;font-size:1.4rem;font-weight:700;color:var(--primary)">'+e.toFixed(1)+'cm</span><span style="font-size:0.68rem;color:var(--muted)">Avg Distance</span></span><span><span style="display:block;font-size:1.4rem;font-weight:700;color:var(--cyan)">'+c.toFixed(1)+'cm</span><span style="font-size:0.68rem;color:var(--muted)">Max Distance</span></span></span>'}
 function setOnline(a){var b=el('top-status'),c=el('side-status');if(a){b.className='status-badge';b.innerHTML='<span style="font-size:0.7rem;color:var(--green)">&#x25cf;</span> <span id="status-text">ONLINE</span>';c.style.color='var(--green)'}else{b.className='status-badge offline';b.innerHTML='<span style="font-size:0.7rem;color:var(--red)">&#x25cf;</span> <span id="status-text">OFFLINE</span>';c.style.color='var(--red)'}}
-function showPage(a,b){document.querySelectorAll('.page').forEach(function(a){a.classList.remove('active')});document.getElementById('page-'+a).classList.add('active');document.querySelectorAll('.nav-item').forEach(function(a){a.classList.remove('active')});if(b)b.classList.add('active')}
+function showPage(a,b){document.querySelectorAll('.page').forEach(function(a){a.classList.remove('active')});document.getElementById('page-'+a).classList.add('active');document.querySelectorAll('.nav-item').forEach(function(a){a.classList.remove('active')});if(b)b.classList.add('active');if(window.innerWidth<=700){document.querySelector('.sidebar').classList.remove('open');document.getElementById('hamburger').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show')}}
+function toggleSidebar(){var a=document.querySelector('.sidebar'),b=document.getElementById('sidebar-overlay'),c=document.getElementById('hamburger');a.classList.toggle('open');c.classList.toggle('open');b.classList.toggle('show')}
 function el(a){return document.getElementById(a)}
 function fmtTime(a){if(a<60)return a+'s';if(a<3600)return Math.floor(a/60)+'m '+(a%60)+'s';return Math.floor(a/3600)+'h '+Math.floor((a%3600)/60)+'m'}
 function applyIP(){var a=el('esp-ip').value.trim();if(a.indexOf('http')!==0)a='http://'+a;ESP_IP=a;el('settings-ip').value=el('esp-ip').value.trim();update()}
