@@ -1,1 +1,12 @@
-anti-intruder.ino
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Keep local secrets out of the repo
+secrets.h
+config.local.php
+
+# Logs
+*.log

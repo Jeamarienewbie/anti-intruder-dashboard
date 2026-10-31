@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>S3-GUARD | PREVIEW MODE (No Device)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f4f6f9;--surface:#ffffff;--card:#ffffff;--card2:#eef1f5;
+  --primary:#2563eb;--cyan:#0891b2;--green:#059669;--red:#dc2626;--orange:#d97706;--violet:#7c3aed;
+  --text:#1a2332;--muted:#64748b;--border:rgba(15,23,42,0.08);--glow:0 0 40px rgba(37,99,235,0.10)
+}
+html,body{height:100%}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);display:flex;overflow:hidden}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--primary);border-radius:4px}
+
+/* ── PREVIEW BANNER ── */
+.preview-banner{position:fixed;top:0;left:0;right:0;z-index:1000;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;text-align:center;padding:7px 12px;font-size:0.78rem;font-weight:700;letter-spacing:0.4px}
+.preview-banner small{font-weight:400;opacity:0.85}
+
+/* ── SIDEBAR ── */
+.sidebar{width:72px;background:linear-gradient(180deg,#ffffff,var(--surface));border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:52px 0 16px;gap:4px;flex-shrink:0;z-index:100}
+.sidebar .brand{font-size:1.5rem;margin-bottom:16px;padding:8px;background:linear-gradient(135deg,var(--primary),var(--violet));border-radius:14px;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.sidebar .nav-item{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;transition:all 0.25s;position:relative;font-size:1.2rem}
+.sidebar .nav-item:hover{color:var(--text);background:rgba(15,23,42,0.04)}
+.sidebar .nav-item.active{color:var(--primary);background:rgba(37,99,235,0.10)}
+.sidebar .nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--primary);border-radius:0 3px 3px 0}
+.sidebar .bottom{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px}
+.sidebar .bottom .nav-item{font-size:0.95rem}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* ── HAMBURGER ── */
+.hamburger{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:4px;background:none;border:none;flex-shrink:0}
+.hamburger span{display:block;width:20px;height:2px;background:var(--text);border-radius:2px;transition:all 0.3s}
+.hamburger.open span:nth-child(1){transform:rotate(45deg) translate(4px,4px)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:rotate(-45deg) translate(4px,-4px)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.35);z-index:99;opacity:0;transition:opacity 0.3s}
+.sidebar-overlay.show{display:block;opacity:1}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow-y:auto;height:100vh}
+.topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:rgba(255,255,255,0.7);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.topbar-left h1{font-size:1.15rem;font-weight:700;background:linear-gradient(135deg,var(--text),var(--muted));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.clock{font-size:0.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.status-badge{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:rgba(5,150,105,0.10);border:1px solid rgba(5,150,105,0.20);font-size:0.68rem;font-weight:600;color:var(--green)}
+.status-badge.offline{background:rgba(220,38,38,0.08);border-color:rgba(220,38,38,0.18);color:var(--red)}
+
+/* ── PAGES ── */
+.pages{flex:1;padding:24px 28px;max-width:1300px;width:100%;margin:0 auto}
+.page{display:none;animation:fadeIn 0.3s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kpi-card{background:var(--card);border-radius:16px;padding:18px 20px;border:1px solid var(--border);position:relative;overflow:hidden;transition:border-color 0.3s;box-shadow:0 1px 3px rgba(15,23,42,0.04)}
+.kpi-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent,var(--primary)),transparent);opacity:0;transition:opacity 0.3s}
+.kpi-card:hover::after{opacity:1}
+.kpi-card .label{font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:6px}
+.kpi-card .value{font-size:1.8rem;font-weight:700;line-height:1.2}
+.kpi-card .sub{font-size:0.7rem;color:var(--muted);margin-top:4px}
+.kpi-card .icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:1.8rem;opacity:0.10}
+
+/* ── CONTENT GRID ── */
+.content-grid{display:grid;grid-template-columns:1fr 360px;gap:16px;margin-bottom:16px}
+.card{background:var(--card);border-radius:16px;padding:20px;border:1px solid var(--border);margin-bottom:16px;transition:border-color 0.3s;box-shadow:0 1px 3px rgba(15,23,42,0.04)}
+.card:hover{border-color:rgba(37,99,235,0.18)}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.card-title{font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:8px}
+.card-title .accent{color:var(--muted);font-weight:400;font-size:0.73rem}
+
+/* ── CHART ── */
+canvas{width:100%!important;border-radius:10px;display:block}
+.chart-box{height:150px;margin-bottom:12px}
+
+/* ── RADAR ── */
+.radar-box{height:110px;background:#eef2f7;border-radius:12px;overflow:hidden;position:relative;border:1px solid var(--border);margin-bottom:12px}
+.radar-fill{position:absolute;bottom:0;left:0;right:0;transition:height 0.5s cubic-bezier(0.34,1.56,0.64,1);background:linear-gradient(to top,var(--primary),rgba(37,99,235,0.05))}
+.radar-value{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;color:var(--text)}
+
+/* ── ALERT BANNER ── */
+.alert-banner{display:none;align-items:center;gap:12px;padding:14px 18px;margin-bottom:16px;background:linear-gradient(135deg,rgba(220,38,38,0.08),rgba(220,38,38,0.02));border:1px solid rgba(220,38,38,0.22);border-radius:12px;animation:slideDown 0.3s ease}
+.alert-banner.show{display:flex}
+@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+.alert-banner .icon{font-size:1.6rem}
+.alert-banner .info h4{color:var(--red);font-size:0.9rem}
+.alert-banner .info p{font-size:0.73rem;color:var(--muted);margin-top:2px}
+.alert-banner .sms-status{margin-left:auto;font-size:0.68rem;font-weight:700;padding:3px 10px;border-radius:20px}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto}
+th{font-size:0.62rem;text-transform:uppercase;color:var(--muted);letter-spacing:0.8px;padding:8px 12px;border-bottom:1px solid var(--border);text-align:left;font-weight:600}
+td{padding:10px 12px;font-size:0.82rem;border-bottom:1px solid rgba(15,23,42,0.04)}
+.badge{padding:2px 10px;border-radius:20px;font-size:0.65rem;font-weight:700}
+.badge-red{background:rgba(220,38,38,0.10);color:var(--red)}
+.badge-grn{background:rgba(5,150,105,0.10);color:var(--green)}
+.badge-org{background:rgba(217,119,6,0.10);color:var(--orange)}
+
+/* ── DUAL STATUS ── */
+.dual-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:2px}
+.stat-block{background:var(--card2);padding:12px;border-radius:12px;text-align:center}
+.stat-block .stat-label{font-size:0.62rem;color:var(--muted);text-transform:uppercase;margin-bottom:5px}
+.stat-block .stat-value{font-size:0.85rem;font-weight:700}
+
+/* ── HISTORY ── */
+.history-item{display:flex;align-items:center;gap:14px;padding:12px 14px;background:var(--card2);border-radius:10px;margin-bottom:6px;transition:transform 0.2s}
+.history-item:hover{transform:translateX(4px)}
+.history-item .h-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+.history-item .h-body{flex:1;min-width:0}
+.history-item .h-title{font-size:0.82rem;font-weight:600}
+.history-item .h-meta{font-size:0.68rem;color:var(--muted);margin-top:2px}
+.history-item .h-right{text-align:right;flex-shrink:0}
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.filter-bar span{padding:4px 14px;border-radius:20px;font-size:0.72rem;font-weight:600;cursor:pointer;transition:all 0.2s;border:1px solid transparent;color:var(--muted)}
+.filter-bar span:hover{color:var(--text);background:rgba(15,23,42,0.04)}
+.filter-bar .active{background:rgba(220,38,38,0.08);color:var(--red);border-color:rgba(220,38,38,0.20)}
+
+/* ── SYSTEM INFO ── */
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:0.8rem}
+.info-row:last-child{border:none}
+.info-row .il{color:var(--muted)}
+.info-row .iv{font-weight:600;font-family:monospace}
+.hw-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hw-item{padding:14px;background:var(--card2);border-radius:12px;display:flex;justify-content:space-between;align-items:center}
+.hw-item .hw-name{font-size:0.8rem;font-weight:600}
+.hw-item .hw-desc{font-size:0.65rem;color:var(--muted);margin-top:2px}
+
+/* ── SETTINGS ── */
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);gap:14px}
+.setting-row:last-child{border:none}
+.setting-label{font-size:0.85rem;font-weight:600}
+.setting-desc{font-size:0.68rem;color:var(--muted);margin-top:2px}
+.setting-input{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:0.82rem;outline:none;width:70px;font-family:monospace}
+.setting-input:focus{border-color:var(--primary)}
+.toggle{width:40px;height:22px;background:var(--green);border-radius:11px;position:relative;cursor:pointer;border:none;transition:0.2s;flex-shrink:0}
+.toggle::after{content:'';position:absolute;top:3px;right:3px;width:16px;height:16px;background:#fff;border-radius:8px;transition:0.2s}
+.toggle.off{background:#cbd5e1}
+.toggle.off::after{right:auto;left:3px}
+.btn{background:var(--primary);border:none;border-radius:8px;padding:9px 16px;color:#fff;font-weight:600;cursor:pointer;font-size:0.82rem;transition:all 0.2s}
+.btn:hover{background:#1d4ed8;box-shadow:0 4px 20px rgba(37,99,235,0.25)}
+.btn-danger{background:rgba(220,38,38,0.10);color:var(--red);border:1px solid rgba(220,38,38,0.25)}
+.btn-danger:hover{background:var(--red);color:#fff}
+.btn-sm{padding:5px 12px;font-size:0.72rem}
+.sim-btn{background:rgba(124,58,237,0.12);color:var(--violet);border:1px solid rgba(124,58,237,0.25)}
+.sim-btn:hover{background:var(--violet);color:#fff}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){.content-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){
+  .hamburger{display:flex}
+  .sidebar{position:fixed;left:-80px;top:0;bottom:0;height:100vh;transition:left 0.3s;z-index:100;box-shadow:4px 0 30px rgba(0,0,0,0.12)}
+  .sidebar.open{left:0}
+  .sidebar .nav-item.active::before{left:auto;right:0;border-radius:3px 0 0 3px}
+  .pages{padding:14px 16px}.topbar{padding:10px 16px;gap:8px}
+  .topbar-left h1{font-size:0.85rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar-right{gap:8px}.clock{font-size:0.65rem}
+  .kpi-grid{gap:10px;grid-template-columns:repeat(2,1fr)}
+  .kpi-card{padding:14px 16px}.kpi-card .value{font-size:1.3rem}
+  .dual-grid{grid-template-columns:1fr}.hw-grid{grid-template-columns:1fr}
+  .filter-bar{gap:6px}.filter-bar span{font-size:0.65rem;padding:3px 10px}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr}
+  .topbar-left h1{max-width:90px;font-size:0.78rem}
+  .status-badge{padding:3px 8px;font-size:0.6rem}
+  .clock{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="preview-banner">&#128275; PREVIEW MODE &mdash; Simulated data, no ESP32 device connected <small>(open this file or host it; no internet needed)</small></div>
+
+<div class="sidebar">
+  <div class="brand">&#x1f6e1;</div>
+  <div class="nav-item active" onclick="showPage('dashboard',this)" title="Dashboard">&#x1f4ca;</div>
+  <div class="nav-item" onclick="showPage('history',this)" title="History">&#x1f4c5;</div>
+  <div class="nav-item" onclick="showPage('analytics',this)" title="Analytics">&#x1f4c8;</div>
+  <div class="nav-item" onclick="showPage('system',this)" title="System">&#x2699;</div>
+  <div class="bottom">
+    <div class="nav-item" id="side-status" title="Status" style="pointer-events:none;color:var(--green);animation:blink 2s infinite">&#x25cf;</div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+      <h1>S3-GUARD &mdash; PREVIEW</h1>
+    </div>
+    <div class="topbar-right">
+      <div class="status-badge" id="top-status"><span style="font-size:0.7rem">&#x25cf;</span> <span id="status-text">SIMULATED</span></div>
+      <span class="clock" id="clock">--:--:--</span>
+    </div>
+  </div>
+
+  <div class="pages">
+
+  <div class="page active" id="page-dashboard">
+    <div class="alert-banner" id="alert-banner">
+      <div class="icon">&#x26a1;</div>
+      <div class="info"><h4>Intrusion Detected</h4><p id="banner-meta">Object detected within range</p></div>
+      <span class="sms-status" id="banner-sms" style="display:none"></span>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi-card" style="--accent:var(--red)"><div class="icon">&#x1f6a8;</div><div class="label">Total Intrusions</div><div class="value" id="kpi-count">0</div><div class="sub">This session</div></div>
+      <div class="kpi-card" style="--accent:var(--cyan)"><div class="icon">&#x1f4e1;</div><div class="label">Current Distance</div><div class="value" id="kpi-dist">-- <span style="font-size:0.9rem">cm</span></div><div class="sub">Ultrasonic sensor</div></div>
+      <div class="kpi-card" style="--accent:var(--green)"><div class="icon">&#x23f1;</div><div class="label">Uptime</div><div class="value" id="kpi-up">0s</div><div class="sub">Since last boot</div></div>
+      <div class="kpi-card" style="--accent:var(--violet)"><div class="icon">&#x1f4f6;</div><div class="label">Network</div><div class="value" id="kpi-rssi" style="font-size:1.1rem">Sim</div><div class="sub" id="kpi-rssi-sub">AP mode</div></div>
+    </div>
+    <div class="content-grid">
+      <div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">&#x1f4e1; Live Distance <span class="accent">Simulated last 60s</span></span></div>
+          <div class="chart-box"><canvas id="telemetry-chart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">&#x1f4cb; Recent Events</span><span style="font-size:0.72rem;color:var(--muted)" id="landing-count">0 events</span></div>
+          <div class="table-wrap" style="max-height:300px;overflow-y:auto" id="landing-events">
+            <div class="empty-state" id="recent-empty" style="text-align:center;padding:30px;color:var(--muted);font-size:0.82rem">No events yet &mdash; the simulator will create them.</div>
+            <div id="recent-list"></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">&#x1f4cd; Proximity Radar</span></div>
+          <div class="radar-box">
+            <div class="radar-fill" id="radar-fill" style="height:0%"></div>
+            <div class="radar-value"><span id="radar-dist">--</span><span style="font-size:0.9rem">cm</span></div>
+          </div>
+          <div class="dual-grid">
+            <div class="stat-block"><div class="stat-label">PIR Status</div><div class="stat-value" id="pir-status" style="color:var(--green)">CLEAR</div></div>
+            <div class="stat-block"><div class="stat-label">Zone</div><div class="stat-value" id="zone-status" style="color:var(--green)">SAFE</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">&#x1f4bb; Device</span></div>
+          <div><div class="info-row"><span class="il">Device ID</span><span class="iv">S3-GUARD-01</span></div>
+          <div class="info-row"><span class="il">Model</span><span class="iv">ESP32-S3 (sim)</span></div>
+          <div class="info-row"><span class="il">Firmware</span><span class="iv">v2.1.0</span></div>
+          <div class="info-row"><span class="il">Alert Range</span><span class="iv" style="color:var(--orange)">&lt; 200 cm (2 m)</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-history">
+    <div class="card">
+      <div class="card-header"><span class="card-title">&#x1f4c5; Event Timeline</span><div style="display:flex;align-items:center;gap:10px"><span style="font-size:0.72rem;color:var(--muted)" id="history-count">0 events</span><button class="btn btn-danger btn-sm" onclick="clearEventsUI()">Clear All</button></div></div>
+      <div class="filter-bar">
+        <span class="active" data-filter="all" onclick="filterHistory('all',this)">All</span>
+        <span data-filter="High" onclick="filterHistory('High',this)">High</span>
+        <span data-filter="Medium" onclick="filterHistory('Medium',this)">Medium</span>
+        <span data-filter="Low" onclick="filterHistory('Low',this)">Low</span>
+      </div>
+      <div id="history-list"><div class="empty-state" style="text-align:center;padding:30px;color:var(--muted);font-size:0.82rem">Waiting for events...</div></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-analytics">
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi-card" style="--accent:var(--orange)"><div class="icon">&#x2b06;</div><div class="label">Peak Distance</div><div class="value" id="an-peak">--<span style="font-size:0.9rem">cm</span></div></div>
+      <div class="kpi-card" style="--accent:var(--cyan)"><div class="icon">&#x2b07;</div><div class="label">Min Distance</div><div class="value" id="an-min">--<span style="font-size:0.9rem">cm</span></div></div>
+      <div class="kpi-card" style="--accent:var(--violet)"><div class="icon">&#x25cf;</div><div class="label">Avg Distance</div><div class="value" id="an-avg">--<span style="font-size:0.9rem">cm</span></div></div>
+    </div>
+    <div class="card"><div class="card-header"><span class="card-title">&#x1f4c8; Distance Distribution</span></div><div class="chart-box" style="height:180px"><canvas id="analytics-chart"></canvas></div></div>
+    <div class="card"><div class="card-header"><span class="card-title">&#x1f4ca; Session Statistics</span></div><div id="stats-summary" style="font-size:0.82rem;color:var(--muted);text-align:center;padding:16px">Collecting data...</div></div>
+  </div>
+
+  <div class="page" id="page-system">
+    <div class="content-grid">
+      <div>
+        <div class="card"><div class="card-header"><span class="card-title">&#x1f50c; Hardware Matrix</span></div>
+          <div class="hw-grid">
+            <div class="hw-item"><div><div class="hw-name">PIR Sensor</div><div class="hw-desc">GPIO 5 - Motion</div></div><span class="badge badge-grn" id="hw-pir">ACTIVE</span></div>
+            <div class="hw-item"><div><div class="hw-name">Ultrasonic</div><div class="hw-desc">Trig:2 Echo:1</div></div><span class="badge badge-grn" id="hw-ultra">ACTIVE</span></div>
+            <div class="hw-item"><div><div class="hw-name">LED</div><div class="hw-desc">GPIO 41 - Alert</div></div><span class="badge" id="hw-led" style="background:rgba(15,23,42,0.05);color:var(--muted)">STANDBY</span></div>
+            <div class="hw-item"><div><div class="hw-name">Buzzer</div><div class="hw-desc">GPIO 42 - Sound</div></div><span class="badge" id="hw-buzzer" style="background:rgba(15,23,42,0.05);color:var(--muted)">STANDBY</span></div>
+          </div>
+        </div>
+        <div class="card"><div class="card-header"><span class="card-title">&#x2699; Configuration</span></div>
+          <div class="setting-row"><div><div class="setting-label">Alert Threshold</div><div class="setting-desc">Intrusion trigger distance (2 m default)</div></div><div style="display:flex;align-items:center;gap:6px"><input class="setting-input" id="threshold-val" type="number" value="200" min="10" max="400" onchange="threshold=parseInt(this.value)||200"><span style="font-size:0.75rem;color:var(--muted)">cm</span></div></div>
+          <div class="setting-row"><div><div class="setting-label">Sound Alert</div><div class="setting-desc">Buzzer on detection</div></div><button class="toggle" id="tog-sound"></button></div>
+          <div class="setting-row"><div><div class="setting-label">Auto Refresh</div><div class="setting-desc">Reload logs every 10s</div></div><button class="toggle" id="tog-refresh"></button></div>
+        </div>
+        <div class="card"><div class="card-header"><span class="card-title">&#x1f5c2; Simulator Controls</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-sm sim-btn" onclick="triggerIntrusion()">&#x26a0; Trigger Intrusion</button>
+            <button class="btn btn-sm" onclick="seedEvents()">Seed Random Events</button>
+            <button class="btn btn-sm sim-btn" onclick="simSpeed=simSpeed===1?5:1;this.textContent=simSpeed===1?'Speed: 1x':'Speed: '+simSpeed+'x'">Speed</button>
+          </div>
+          <div style="margin-top:10px;font-size:0.68rem;color:var(--muted)">Use these buttons to preview how events, the alarm banner, and SMS status behave before uploading to the real device.</div>
+        </div>
+      </div>
+      <div>
+        <div class="card"><div class="card-header"><span class="card-title">&#x1f4f6; Connection</span></div>
+          <div class="info-row"><span class="il">Mode</span><span class="iv" id="dev-net">Simulated (AP)</span></div>
+          <div class="info-row"><span class="il">ESP32 IP</span><span class="iv" id="dev-ip">192.168.4.1</span></div>
+          <div class="info-row"><span class="il">RSSI</span><span class="iv" id="dev-rssi">--</span></div>
+          <div class="info-row"><span class="il">Uptime</span><span class="iv" id="dev-up">--</span></div>
+          <div class="info-row"><span class="il">Intrusions</span><span class="iv" id="dev-count">--</span></div>
+          <div style="margin-top:14px"><div style="font-size:0.68rem;color:var(--muted);margin-bottom:6px">Signal</div><div style="height:4px;background:rgba(15,23,42,0.06);border-radius:2px;overflow:hidden"><div id="rssi-bar" style="height:100%;transition:0.5s;width:60%"></div></div></div>
+        </div>
+        <div class="card"><div class="card-header"><span class="card-title">&#x1f4f1; SMS Alerts (PhilSMS)</span></div>
+          <div class="info-row"><span class="il">Status</span><span class="iv" id="sms-status">Idle</span></div>
+          <div class="info-row"><span class="il">HTTP Code</span><span class="iv" id="sms-code">--</span></div>
+          <div class="info-row"><span class="il">Recipient</span><span class="iv">639687572643</span></div>
+          <div class="info-row"><span class="il">Sender ID</span><span class="iv">PhilSMS</span></div>
+        </div>
+        <div class="card"><div class="card-header"><span class="card-title">&#x2139; About</span></div>
+          <div style="font-size:0.75rem;color:var(--muted);line-height:1.6">
+          <strong style="color:var(--text)">S3-GUARD v2.1 &mdash; Preview</strong><br>
+          ESP32-S3 Intrusion Detection System<br>
+          PIR + Ultrasonic + SD Logging + SMS Alert<br>
+          <span style="font-size:0.68rem">This preview runs on simulated data so you can check the UI before flashing the device.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+</div>
+
+<script>
+/* ═══════════════ SIMULATOR STATE ═══════════════ */
+var serverEvents = [], serverStats = null, distHistory = [];
+var lastMotion = false, threshold = 200, currentFilter = 'all';
+var uptime = 1243, nextId = 1, simSpeed = 1, simTimer = 0;
+
+function makeChart(a,b,c){var d=document.getElementById(a),e=d.getContext('2d');return{canvas:d,ctx:e,data:new Array(60).fill(null),label:b,color:c}}
+var telChart=makeChart('telemetry-chart','Distance','#2563eb'),anaChart=makeChart('analytics-chart','Distance','#7c3aed');
+
+/* ── HELPERS ── */
+function el(a){return document.getElementById(a)}
+function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+function fmtTime(a){if(a<60)return a+'s';if(a<3600)return Math.floor(a/60)+'m '+(a%60)+'s';return Math.floor(a/3600)+'h '+Math.floor((a%3600)/60)+'m'}
+function sevLabel(a){return a==='H'?'High':a==='M'?'Medium':'Low'}
+function sevCls(a){return a==='H'?'badge-red':a==='M'?'badge-org':'badge-grn'}
+
+/* ── CHART DRAWING (same as real dashboard) ── */
+function drawChart(a){var b=a.canvas,c=a.ctx,d=a.data,e=a.color,f=window.devicePixelRatio||1,g=b.parentElement;b.width=g.clientWidth*f;b.height=g.clientHeight*f;c.scale(f,f);var h=g.clientWidth,i=g.clientHeight;c.clearRect(0,0,h,i);var j=d.filter(function(a){return a!==null});if(j.length<2){c.fillStyle='rgba(15,23,42,0.25)';c.font='12px sans-serif';c.textAlign='center';c.fillText('Waiting for data...',h/2,i/2);return}var k=Math.max.apply(null,j.concat([100])),l=h/(d.length-1);c.strokeStyle='rgba(15,23,42,0.06)';c.lineWidth=1;for(var m=0;m<=4;m++){var n=i-(m/4)*(i-20)-4;c.beginPath();c.moveTo(0,n);c.lineTo(h,n);c.stroke()}var o=c.createLinearGradient(0,0,0,i);o.addColorStop(0,e+'30');o.addColorStop(1,'transparent');c.beginPath();var p=!1;d.forEach(function(a,b){if(a===null)return;var f=b*l,g=i-(a/k)*(i-20)-4;if(!p){c.moveTo(f,i);c.lineTo(f,g);p=!0}else c.lineTo(f,g)});c.lineTo((d.length-1)*l,i);c.closePath();c.fillStyle=o;c.fill();c.beginPath();p=!1;d.forEach(function(a,b){if(a===null)return;var f=b*l,g=i-(a/k)*(i-20)-4;if(!p){c.moveTo(f,g);p=!0}else c.lineTo(f,g)});c.strokeStyle=e;c.lineWidth=2;c.lineJoin='round';c.lineCap='round';c.stroke()}
+
+/* ── SEED INITIAL EVENTS ── */
+function seedEvents(){
+  var sampleDists=[45,28,72,130,55,220,18,95,64,300,12,180,40,85,150,260,33,70,110,200];
+  var baseUp=uptime-3600;
+  for(var i=sampleDists.length-1;i>=0;i--){
+    var d=sampleDists[i],sev=d<30?'H':d<60?'M':'L',type=d<80?'I':'M';
+    serverEvents.unshift({id:nextId++,u:baseUp+rnd(0,3600),d:d,p:true,s:sev,t:type});
+  }
+  serverEvents.sort(function(a,b){return b.u-a.u});
+  nextId=serverEvents.length+1;
+  renderEventLog();renderStats();
+}
+function addSimEvent(d,pir){
+  var sev=d<30?'H':d<60?'M':'L',type=(pir&&d<80)?'I':'M';
+  serverEvents.unshift({id:nextId++,u:uptime,d:Math.round(d*10)/10,p:pir,s:sev,t:type});
+  if(serverEvents.length>200)serverEvents.pop();
+  renderEventLog();renderStats();
+}
+
+/* ── SIMULATE SMS FLOW ── */
+function simulateSMS(){
+  var s=el('sms-status'),c=el('sms-code'),b=el('banner-sms');
+  s.innerText='Sending...';s.style.color='var(--orange)';c.innerText='--';
+  b.style.display='inline-block';b.innerText='SMS sending...';b.style.background='rgba(217,119,6,0.1)';b.style.color='var(--orange)';
+  setTimeout(function(){
+    var ok=Math.random()>0.2;
+    s.innerText=ok?'Sent':'Failed';s.style.color=ok?'var(--green)':'var(--red)';
+    c.innerText=ok?200:500;
+    b.innerText=ok?'SMS sent':'SMS failed';b.style.background=ok?'rgba(5,150,105,0.1)':'rgba(220,38,38,0.1)';
+    b.style.color=ok?'var(--green)':'var(--red)';
+  },1200*simSpeed);
+}
+
+/* ── MANUAL TRIGGER ── */
+function triggerIntrusion(){
+  var d=rnd(12,75);
+  if(!lastMotion){lastMotion=true;addSimEvent(d,true);el('kpi-count').innerText=serverEvents.filter(function(e){return e.t==='I'}).length;simulateSMS();}
+  applyAlarmUI(d,true);
+}
+function clearEventsUI(){if(!confirm('Clear all '+serverEvents.length+' events?'))return;serverEvents=[];serverStats=null;el('kpi-count').innerText='0';renderEventLog();renderStats()}
+
+/* ── UI UPDATE from simulated state ── */
+function applyAlarmUI(b,c){
+  el('radar-dist').innerText=b;
+  var pct=Math.max(0,Math.min(100,100-b/400*100));
+  el('radar-fill').style.height=pct+'%';
+  el('radar-fill').style.background=b<80?'linear-gradient(to top,rgba(220,38,38,0.8),rgba(220,38,38,0.1))':'linear-gradient(to top,rgba(37,99,235,0.8),rgba(37,99,235,0.1))';
+  el('pir-status').innerText=c?'TRIGGERED':'CLEAR';
+  el('pir-status').style.color=c?'var(--red)':'var(--green)';
+  el('zone-status').innerText=b<threshold?'BREACH':'SAFE';
+  el('zone-status').style.color=b<threshold?'var(--red)':'var(--green)';
+  var e=el('alert-banner');
+  if(c){e.classList.add('show');el('banner-meta').innerText='Object at '+b+'cm'}
+  else e.classList.remove('show');
+  el('hw-led').className='badge '+(c?'badge-red':'badge-grn');
+  el('hw-led').innerText=c?'TRIGGERED':'STANDBY';
+  el('hw-buzzer').className='badge '+(c?'badge-red':'');
+  el('hw-buzzer').style.cssText=c?'':'background:rgba(15,23,42,0.05);color:var(--muted)';
+  el('hw-buzzer').innerText=c?'ACTIVE':'STANDBY';
+}
+
+function update(){
+  uptime+=2;
+  /* random walk distance */
+  var last=telChart.data.filter(function(v){return v!==null}).pop();
+  var base=last?last:rnd(120,300);
+  var newDist=Math.max(8,Math.min(380,base+rnd(-35,35)));
+  if(Math.random()<0.06)newDist=rnd(10,70);
+  telChart.data.push(newDist>=400?null:newDist);
+  if(telChart.data.length>60)telChart.data.shift();
+  distHistory.push(newDist);if(distHistory.length>500)distHistory.shift();
+
+  /* random PIR triggers */
+  var pir = Math.random()<0.12;
+  var intrusion = pir && newDist<80;
+  if(intrusion&&!lastMotion){addSimEvent(newDist,true);simulateSMS();}
+  if(!intrusion&&pir&&!lastMotion){addSimEvent(newDist,false);}
+  lastMotion=intrusion;
+
+  /* KPIs */
+  var count=serverEvents.filter(function(e){return e.t==='I'}).length;
+  el('kpi-count').innerText=count;
+  el('kpi-dist').innerHTML=Math.round(newDist)+'<span style="font-size:0.9rem">cm</span>';
+  el('kpi-up').innerText=fmtTime(uptime);
+  el('dev-up').innerText=fmtTime(uptime);
+  el('dev-count').innerText=count;
+
+  applyAlarmUI(Math.round(newDist),intrusion);
+  drawChart(telChart);drawChart(anaChart);
+  renderStats();
+}
+
+/* ── RENDER EVENTS ── */
+function renderEventLog(){renderRecent(serverEvents);renderHistory(serverEvents)}
+function renderRecent(a){
+  var b=el('recent-list'),c=el('recent-empty');el('landing-count').innerText=a.length+' events';
+  if(!a.length){c.style.display='block';return}
+  c.style.display='none';b.innerHTML='';
+  a.slice(0,25).forEach(function(a){
+    var g=a.s==='H'?'#dc2626':a.s==='M'?'#d97706':'#059669',d=a.t==='I'?'&#x26a0;':'&#x1f440;',
+        f='Up: '+fmtTime(a.u)+' | ID:'+a.id,title=a.t==='I'?'Intrusion at '+Math.round(a.d)+'cm':'Motion at '+Math.round(a.d)+'cm';
+    b.innerHTML+='<div class="history-item"><div class="h-icon" style="background:'+g+'15;color:'+g+'">'+d+'</div><div class="h-body"><div class="h-title">'+title+'</div><div class="h-meta">'+f+'</div></div><div class="h-right"><span class="badge '+sevCls(a.s)+'">'+sevLabel(a.s)+'</span></div></div>';
+  });
+}
+function renderHistory(a){
+  var b=el('history-list');el('history-count').innerText=a.length+' events';
+  var c=a;if(currentFilter!=='all')c=a.filter(function(a){return sevLabel(a.s)===currentFilter});
+  if(c.length===0){b.innerHTML='<div class="empty-state" style="text-align:center;padding:30px;color:var(--muted);font-size:0.82rem">No '+(currentFilter==='all'?'':'matching ')+'events.</div>';return}
+  b.innerHTML='';
+  c.slice(0,80).forEach(function(a){
+    var g=a.s==='H'?'#dc2626':a.s==='M'?'#d97706':'#059669',d=a.t==='I'?'&#x26a0;':'&#x1f440;',
+        f='Up: '+fmtTime(a.u)+' | ID:'+a.id,title=a.t==='I'?'Intrusion at '+Math.round(a.d)+'cm':'Motion at '+Math.round(a.d)+'cm';
+    b.innerHTML+='<div class="history-item"><div class="h-icon" style="background:'+g+'15;color:'+g+'">'+d+'</div><div class="h-body"><div class="h-title">'+title+'</div><div class="h-meta">'+f+'</div></div><div class="h-right"><span class="badge '+sevCls(a.s)+'">'+sevLabel(a.s)+'</span></div></div>';
+  });
+}
+function filterHistory(a,b){currentFilter=a;var c=document.querySelectorAll('.filter-bar span');c.forEach(function(a){a.classList.remove('active')});if(b)b.classList.add('active');else document.querySelector('.filter-bar [data-filter="'+a+'"]').classList.add('active');renderHistory(serverEvents)}
+
+/* ── STATS ── */
+function renderStats(){
+  var s=serverEvents,d=s.filter(function(a){return a.d<400&&a.d>0});
+  var peak=0,min=1e9,sum=0,high=0,med=0,low=0,intrusions=0,motions=0;
+  s.forEach(function(e){if(e.d>peak)peak=e.d;if(e.d<min)min=e.d;sum+=e.d;if(e.s==='H')high++;else if(e.s==='M')med++;else low++;if(e.t==='I')intrusions++;else motions++});
+  var avg=s.length?(sum/s.length):0;
+  el('an-peak').innerHTML=(peak||'--')+'<span style="font-size:0.9rem">cm</span>';
+  el('an-min').innerHTML=(s.length?min.toFixed(1):'--')+'<span style="font-size:0.9rem">cm</span>';
+  el('an-avg').innerHTML=(s.length?avg.toFixed(1):'--')+'<span style="font-size:0.9rem">cm</span>';
+  anaChart.data=s.slice(0,60).map(function(a){return a.d}).reverse();
+  el('mgr-total')&&(el('mgr-total').innerText=s.length);
+  el('mgr-last')&&(el('mgr-last').innerText=s.length?fmtTime(s[0].u):'--');
+  el('stats-summary').innerHTML='<span style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;text-align:center"><span><span style="display:block;font-size:1.4rem;font-weight:700;color:var(--red)">'+high+'</span><span style="font-size:0.68rem;color:var(--muted)">High</span></span><span><span style="display:block;font-size:1.4rem;font-weight:700;color:var(--orange)">'+med+'</span><span style="font-size:0.68rem;color:var(--muted)">Medium</span></span><span><span style="display:block;font-size:1.4rem;font-weight:700;color:var(--green)">'+low+'</span><span style="font-size:0.68rem;color:var(--muted)">Low</span></span></span><div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:0.75rem"><span style="color:var(--muted)">Intrusions (alarm)</span><strong>'+intrusions+'</strong></div><div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-top:6px"><span style="color:var(--muted)">Motions (out of range)</span><strong>'+motions+'</strong></div><div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-top:6px"><span style="color:var(--muted)">Total Transactions</span><strong>'+s.length+'</strong></div><div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-top:6px"><span style="color:var(--muted)">Min / Peak Distance</span><strong>'+ (s.length?min.toFixed(1):'--')+' / '+(peak||'--')+' cm</strong></div>';
+  drawChart(anaChart);
+}
+
+/* ── NAV & MISC ── */
+function showPage(a,b){document.querySelectorAll('.page').forEach(function(a){a.classList.remove('active')});document.getElementById('page-'+a).classList.add('active');document.querySelectorAll('.nav-item').forEach(function(a){a.classList.remove('active')});if(b)b.classList.add('active');if(window.innerWidth<=700){document.querySelector('.sidebar').classList.remove('open');document.getElementById('hamburger').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show')}}
+function toggleSidebar(){var a=document.querySelector('.sidebar'),b=document.getElementById('sidebar-overlay'),c=document.getElementById('hamburger');a.classList.toggle('open');c.classList.toggle('open');b.classList.toggle('show')}
+function updateClock(){el('clock').innerText=new Date().toLocaleTimeString()+' | '+new Date().toLocaleDateString()}
+window.addEventListener('resize',function(){drawChart(telChart);drawChart(anaChart)});
+
+/* ── START ── */
+seedEvents();
+setInterval(function(){update()}, 600*simSpeed);
+setInterval(updateClock,1000);
+updateClock();
+</script>
+</body>
+</html>

@@ -1,0 +1,814 @@
+<?php
+// S3-GUARD | Clean White Minimalist Dashboard
+// Serves as standalone web app - works via XAMPP localhost or hosted
+// Supports both Firebase cloud mode and local ESP IP mode via ?ip= query param
+$default_ip = "192.168.4.1";
+$esp_ip = isset($_GET['ip']) ? htmlspecialchars($_GET['ip']) : (isset($_GET['esp']) ? htmlspecialchars($_GET['esp']) : '');
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>S3-GUARD — Intrusion Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f9fafb;
+  --surface:#ffffff;
+  --card:#ffffff;
+  --border:#eceef2;
+  --border-strong:#e5e7eb;
+  --text:#0f172a;
+  --text-2:#334155;
+  --muted:#94a3b8;
+  --muted-2:#64748b;
+  --ink:#0f172a;
+  --accent:#0f172a;
+  --red:#dc2626;
+  --red-bg:#fef2f2;
+  --red-border:#fecaca;
+  --green:#059669;
+  --green-bg:#ecfdf5;
+  --green-border:#a7f3d0;
+  --orange:#d97706;
+  --orange-bg:#fffbeb;
+  --orange-border:#fde68a;
+  --radius:14px;
+  --radius-sm:10px;
+  --shadow:0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.04);
+  --shadow-card:0 1px 2px rgba(15,23,42,0.06);
+}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);display:flex;overflow:hidden;-webkit-font-smoothing:antialiased;letter-spacing:-0.01em}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:999px}::-webkit-scrollbar-track{background:transparent}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:68px;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;
+  padding:20px 0 16px;gap:2px;flex-shrink:0;z-index:100;
+}
+.sidebar .brand{
+  width:36px;height:36px;border-radius:10px;background:var(--ink);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;letter-spacing:0.04em;margin-bottom:18px;
+}
+.sidebar .nav{
+  display:flex;flex-direction:column;gap:6px;width:100%;align-items:center;
+}
+.sidebar .nav-item{
+  width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  color:var(--muted-2);cursor:pointer;transition:all 0.18s;border:1px solid transparent;
+}
+.sidebar .nav-item:hover{background:#f1f5f9;color:var(--text);border-color:var(--border)}
+.sidebar .nav-item.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.sidebar .nav-item svg{width:18px;height:18px;stroke-width:1.7}
+.sidebar .bottom{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:14px;border-top:1px solid var(--border);width:40px}
+.sidebar .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px var(--green-bg)}
+.sidebar .dot.off{background:#cbd5e1;box-shadow:none}
+
+/* ── MOBILE ── */
+.hamburger{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;flex-shrink:0}
+.hamburger span{display:block;width:16px;height:1.5px;background:var(--text);border-radius:2px;transition:all 0.25s}
+.hamburger.open span:nth-child(1){transform:rotate(45deg) translate(3px,3px)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:rotate(-45deg) translate(4px,-4px)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.32);backdrop-filter:blur(2px);z-index:99;opacity:0;transition:opacity 0.25s}
+.sidebar-overlay.show{display:block;opacity:1}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow-y:auto;height:100vh;min-width:0}
+.topbar{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+  padding:16px 32px;background:rgba(249,250,251,0.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-shrink:0;gap:16px;
+}
+.topbar-left{display:flex;align-items:center;gap:14px;min-width:0}
+.topbar-left .eyebrow{font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted)}
+.topbar-left h1{font-size:15px;font-weight:600;letter-spacing:-0.02em;line-height:1.1}
+.topbar-left .sub{font-size:12px;color:var(--muted-2);font-weight:400;margin-top:1px}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.clock{font-size:12px;color:var(--muted-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.status{
+  display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;
+  background:var(--surface);border:1px solid var(--border);font-size:11px;font-weight:600;letter-spacing:0.02em;color:var(--text-2);
+}
+.status .pill{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px var(--green-bg)}
+.status.off .pill{background:var(--red);box-shadow:0 0 0 4px var(--red-bg)}
+.status.off{color:var(--red)}
+
+/* ── PAGES ── */
+.pages{flex:1;padding:24px 32px 32px;max-width:1280px;width:100%;margin:0 auto}
+.page{display:none;animation:fade 0.22s ease}
+.page.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── SECTION LABEL ── */
+.section-label{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.kpi-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;
+  box-shadow:var(--shadow-card);position:relative;
+}
+.kpi-card .label{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)}
+.kpi-card .value{font-size:26px;font-weight:650;letter-spacing:-0.03em;margin-top:8px;line-height:1}
+.kpi-card .value small{font-size:12px;font-weight:500;color:var(--muted-2);letter-spacing:0}
+.kpi-card .sub{font-size:11px;color:var(--muted-2);margin-top:6px}
+.kpi-card .meta-dot{position:absolute;top:16px;right:16px;width:8px;height:8px;border-radius:50%;background:var(--border-strong)}
+.kpi-card.accent-red .meta-dot{background:var(--red)}
+.kpi-card.accent-green .meta-dot{background:var(--green)}
+.kpi-card.accent-orange .meta-dot{background:var(--orange)}
+
+/* ── GRID ── */
+.content-grid{display:grid;grid-template-columns:1fr 340px;gap:14px}
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;
+  box-shadow:var(--shadow-card);
+}
+.card + .card{margin-top:14px}
+.content-grid > div > .card + .card{margin-top:14px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px}
+.card-title{font-size:12px;font-weight:600;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px}
+.card-title svg{width:14px;height:14px;color:var(--muted-2)}
+.card-title .accent{font-weight:400;color:var(--muted);font-size:11px}
+.card-action{font-size:11px;font-weight:500;color:var(--muted-2)}
+.divider{height:1px;background:var(--border);margin:14px 0}
+
+/* ── CHART ── */
+canvas{width:100%!important;display:block}
+.chart-box{height:148px}
+.chart-box.tall{height:176px}
+
+/* ── RADAR ── */
+.radar{height:96px;background:#f8fafc;border:1px solid var(--border);border-radius:12px;position:relative;overflow:hidden;margin-bottom:10px}
+.radar-fill{position:absolute;bottom:0;left:0;right:0;transition:height 0.45s cubic-bezier(0.34,1.2,0.64,1)}
+.radar-value{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.radar-value strong{font-size:24px;font-weight:700;letter-spacing:-0.03em;line-height:1}
+.radar-value span{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)}
+.pill-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pill-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center}
+.pill-card .k{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.pill-card .v{font-size:12px;font-weight:650;letter-spacing:-0.01em}
+.pill-card .v.ok{color:var(--green)}
+.pill-card .v.bad{color:var(--red)}
+
+/* ── ALERT ── */
+.alert{
+  display:none;align-items:center;gap:12px;padding:12px 14px;margin-bottom:16px;
+  background:var(--red-bg);border:1px solid var(--red-border);border-radius:12px;
+}
+.alert.show{display:flex}
+.alert .dot{width:28px;height:28px;border-radius:999px;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.alert .dot svg{width:14px;height:14px}
+.alert h4{font-size:12px;font-weight:650;color:var(--red)}
+.alert p{font-size:11px;color:#991b1b;margin-top:1px}
+.alert .right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.badge-sms{font-size:10px;font-weight:700;letter-spacing:0.04em;padding:4px 8px;border-radius:999px;border:1px solid transparent;display:none}
+.badge-sms.show{display:inline-flex}
+
+/* ── TABLE / LIST ── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+td{padding:10px 10px;font-size:12.5px;border-bottom:1px solid #f1f5f9}
+tr:last-child td{border-bottom:none}
+.badge{padding:3px 8px;border-radius:999px;font-size:10px;font-weight:650;letter-spacing:0.03em;border:1px solid transparent;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.badge-red{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.badge-green{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.badge-amber{background:var(--orange-bg);color:var(--orange);border-color:var(--orange-border)}
+.badge-muted{background:#f1f5f9;color:var(--muted-2);border-color:var(--border)}
+.empty{padding:28px 16px;text-align:center;color:var(--muted);font-size:12px;line-height:1.5}
+.empty strong{color:var(--muted-2);font-weight:600}
+
+/* ── HISTORY ITEMS ── */
+.history-item{
+  display:flex;align-items:center;gap:12px;padding:11px 12px;background:#f8fafc;
+  border:1px solid var(--border);border-radius:11px;margin-bottom:7px;
+}
+.history-item:last-child{margin-bottom:0}
+.h-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid var(--border);background:#fff}
+.h-icon svg{width:14px;height:14px}
+.h-body{flex:1;min-width:0}
+.h-title{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-meta{font-size:11px;color:var(--muted-2);margin-top:1px;font-variant-numeric:tabular-nums}
+.h-right{flex-shrink:0}
+.filter-bar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.filter-bar button{
+  padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid var(--border);
+  background:#fff;color:var(--muted-2);cursor:pointer;transition:all 0.15s;
+}
+.filter-bar button:hover{border-color:var(--border-strong);color:var(--text)}
+.filter-bar button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* ── SYSTEM ── */
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px;gap:12px}
+.info-row:last-child{border:none}
+.info-row .il{color:var(--muted-2);font-weight:400}
+.info-row .iv{font-weight:600;font-family:'JetBrains Mono',monospace;font-size:11.5px}
+.hw-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hw-item{padding:12px;background:#f8fafc;border:1px solid var(--border);border-radius:11px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.hw-item .hw-name{font-size:12px;font-weight:600}
+.hw-item .hw-desc{font-size:10px;color:var(--muted-2);margin-top:2px;font-family:'JetBrains Mono',monospace}
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);gap:12px}
+.setting-row:last-child{border:none}
+.setting-label{font-size:12px;font-weight:600}
+.setting-desc{font-size:11px;color:var(--muted-2);margin-top:1px}
+.setting-input{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;outline:none;width:72px;font-family:'JetBrains Mono',monospace;text-align:center}
+.setting-input:focus{border-color:var(--ink);background:#fff}
+.ip-input{flex:1;background:#f8fafc;border:1px solid var(--border);border-radius:9px;padding:8px 11px;color:var(--text);font-size:12px;outline:none;font-family:'JetBrains Mono',monospace}
+.ip-input:focus{border-color:var(--ink);background:#fff}
+.btn{background:var(--ink);border:1px solid var(--ink);border-radius:9px;padding:8px 14px;color:#fff;font-weight:600;cursor:pointer;font-size:12px;transition:all 0.15s;white-space:nowrap}
+.btn:hover{background:#1e293b;border-color:#1e293b}
+.btn-ghost{background:#fff;border-color:var(--border);color:var(--text)}
+.btn-ghost:hover{background:#f8fafc;border-color:var(--border-strong)}
+.btn-danger{background:#fff;color:var(--red);border-color:var(--red-border)}
+.btn-danger:hover{background:var(--red);color:#fff;border-color:var(--red)}
+.btn-sm{padding:6px 11px;font-size:11px;border-radius:8px}
+.toggle{width:38px;height:22px;background:var(--ink);border-radius:999px;position:relative;cursor:pointer;border:1px solid var(--ink);transition:all 0.18s;flex-shrink:0}
+.toggle::after{content:'';position:absolute;top:2px;right:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:all 0.18s;box-shadow:0 1px 2px rgba(0,0,0,0.15)}
+.toggle.off{background:#e2e8f0;border-color:#e2e8f0}
+.toggle.off::after{right:auto;left:2px}
+.mono{font-family:'JetBrains Mono',monospace}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){.content-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){
+  .hamburger{display:flex}
+  .sidebar{position:fixed;left:-72px;top:0;bottom:0;height:100vh;transition:left 0.28s;box-shadow:8px 0 30px rgba(15,23,42,0.08)}
+  .sidebar.open{left:0}
+  .pages{padding:16px 16px 24px}.topbar{padding:12px 16px}
+  .topbar-left h1{font-size:13px}
+  .kpi-grid{gap:8px;grid-template-columns:repeat(2,1fr)}
+  .kpi-card{padding:14px}
+  .kpi-card .value{font-size:20px}
+  .hw-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .clock{display:none}
+  .pill-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<nav class="sidebar" aria-label="Primary">
+  <div class="brand">S3</div>
+  <div class="nav">
+    <button class="nav-item active" onclick="showPage('dashboard',this)" title="Dashboard" aria-label="Dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+    </button>
+    <button class="nav-item" onclick="showPage('history',this)" title="History" aria-label="History">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 7v5l3 2"/></svg>
+    </button>
+    <button class="nav-item" onclick="showPage('analytics',this)" title="Analytics" aria-label="Analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="M7 16l3 -5l3 2l4 -6"/></svg>
+    </button>
+    <button class="nav-item" onclick="showPage('reports',this)" title="Reports" aria-label="Reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2h-10a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2z"/><path d="M14 2v6a2 2 0 0 0 2 2h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>
+    </button>
+    <button class="nav-item" onclick="showPage('system',this)" title="System" aria-label="System">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 15a3 3 0 1 0 0 -6a3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06 .06a2 2 0 1 1 -2.83 2.83l-.06 -.06a1.65 1.65 0 0 0 -1.82 -.33a1.65 1.65 0 0 0 -1 1.51v.17a2 2 0 0 1 -4 0v-.17a1.65 1.65 0 0 0 -1 -1.51a1.65 1.65 0 0 0 -1.82 .33l-.06 .06a2 2 0 1 1 -2.83 -2.83l.06 -.06a1.65 1.65 0 0 0 .33 -1.82a1.65 1.65 0 0 0 -1.51 -1h-.17a2 2 0 0 1 0 -4h.17a1.65 1.65 0 0 0 1.51 -1a1.65 1.65 0 0 0 -.33 -1.82l-.06 -.06a2 2 0 1 1 2.83 -2.83l.06 .06a1.65 1.65 0 0 0 1.82 .33h.17a1.65 1.65 0 0 0 1 -1.51v-.17a2 2 0 0 1 4 0v.17a1.65 1.65 0 0 0 1 1.51a1.65 1.65 0 0 0 1.82 -.33l.06 -.06a2 2 0 1 1 2.83 2.83l-.06 .06a1.65 1.65 0 0 0 -.33 1.82v.17a1.65 1.65 0 0 0 1.51 1h.17a2 2 0 0 1 0 4h-.17a1.65 1.65 0 0 0 -1.51 1z"/></svg>
+    </button>
+  </div>
+  <div class="bottom">
+    <div class="dot" id="side-dot" title="Online"></div>
+  </div>
+</nav>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<div class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+      <div>
+        <div class="eyebrow">S3-GUARD — Intrusion Detection</div>
+        <h1 id="page-title">Dashboard</h1>
+        <div class="sub" id="page-sub">Live monitoring &amp; recent activity</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="clock" id="clock">--:--:--</span>
+      <div class="status" id="top-status"><span class="pill"></span><span id="status-text">ONLINE</span></div>
+    </div>
+  </header>
+
+  <div class="pages">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="alert" id="alert-banner">
+        <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.3l-6.4 11.1a2 2 0 0 0 1.7 3h12.8a2 2 0 0 0 1.7 -3l-6.4 -11.1a2 2 0 0 0 -3.4 0z"/></svg></div>
+        <div><h4>Intrusion detected</h4><p id="banner-meta">Object within threshold range</p></div>
+        <div class="right"><span class="badge-sms" id="banner-sms"></span></div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card accent-red"><div class="meta-dot"></div><div class="label">Total intrusions</div><div class="value" id="kpi-count">0</div><div class="sub">This session</div></div>
+        <div class="kpi-card"><div class="meta-dot"></div><div class="label">Current distance</div><div class="value" id="kpi-dist">-- <small>cm</small></div><div class="sub">Ultrasonic sensor</div></div>
+        <div class="kpi-card accent-green"><div class="meta-dot"></div><div class="label">Uptime</div><div class="value" id="kpi-up">0s</div><div class="sub">Since last boot</div></div>
+        <div class="kpi-card"><div class="meta-dot"></div><div class="label">Signal</div><div class="value" id="kpi-rssi" style="font-size:16px">--</div><div class="sub" id="kpi-rssi-sub">dBm</div></div>
+      </div>
+
+      <div class="content-grid">
+        <div>
+          <div class="card">
+            <div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="M7 16l3 -5l3 3l4 -7"/></svg> Live distance <span class="accent">— last 60s</span></span><span class="card-action mono" id="live-hint">waiting</span></div>
+            <div class="chart-box"><canvas id="telemetry-chart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Recent events</span><span class="card-action" id="landing-count">0 events</span></div>
+            <div id="recent-list"></div>
+            <div class="empty" id="recent-empty"><strong>No intrusions yet</strong><br>Events appear here when the sensor triggers.</div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg> Proximity</span></div>
+            <div class="radar"><div class="radar-fill" id="radar-fill" style="height:0%;background:#0f172a"></div><div class="radar-value"><strong id="radar-dist">--</strong><span>centimeters</span></div></div>
+            <div class="pill-row">
+              <div class="pill-card"><div class="k">PIR</div><div class="v ok" id="pir-status">CLEAR</div></div>
+              <div class="pill-card"><div class="k">Zone</div><div class="v ok" id="zone-status">SAFE</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6h-6z"/></svg> Device</span></div>
+            <div class="info-row"><span class="il">Device ID</span><span class="iv">S3-GUARD-01</span></div>
+            <div class="info-row"><span class="il">Model</span><span class="iv">ESP32-S3</span></div>
+            <div class="info-row"><span class="il">Firmware</span><span class="iv">v2.1.0</span></div>
+            <div class="info-row"><span class="il">Alert threshold</span><span class="iv" style="color:var(--orange)">&le; 200 cm (2 m)</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="page" id="page-history">
+      <div class="card">
+        <div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 7v5l3 2"/></svg> Event timeline</span><div style="display:flex;align-items:center;gap:8px"><span class="card-action" id="history-count">0 events</span><button class="btn btn-danger btn-sm" onclick="clearEventsUI()">Clear</button></div></div>
+        <div class="filter-bar">
+          <button class="active" data-filter="all" onclick="filterHistory('all',this)">All</button>
+          <button data-filter="High" onclick="filterHistory('High',this)">High</button>
+          <button data-filter="Medium" onclick="filterHistory('Medium',this)">Medium</button>
+          <button data-filter="Low" onclick="filterHistory('Low',this)">Low</button>
+        </div>
+        <div id="history-list"><div class="empty">Waiting for events…</div></div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="page" id="page-analytics">
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="kpi-card accent-orange"><div class="meta-dot"></div><div class="label">Peak distance</div><div class="value" id="an-peak">--<small>cm</small></div></div>
+        <div class="kpi-card"><div class="meta-dot"></div><div class="label">Min distance</div><div class="value" id="an-min">--<small>cm</small></div></div>
+        <div class="kpi-card"><div class="meta-dot"></div><div class="label">Avg distance</div><div class="value" id="an-avg">--<small>cm</small></div></div>
+      </div>
+      <div class="card"><div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="M7 14l3 -3l3 2l4 -5"/></svg> Distance distribution</span></div><div class="chart-box tall"><canvas id="analytics-chart"></canvas></div></div>
+      <div class="card"><div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3l8 -8"/><path d="M20 12v6a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h6"/></svg> Session statistics</span></div><div id="stats-summary" class="empty">Collecting data…</div></div>
+    </div>
+
+    <!-- REPORTS (day + time) -->
+    <div class="page" id="page-reports">
+      <div class="card">
+        <div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2h-10a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2z"/><path d="M14 2v6a2 2 0 0 0 2 2h6"/></svg> Detection reports — by day &amp; time</span><span class="card-action" id="report-count">0 events</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <select id="report-day" class="ip-input" style="max-width:260px" onchange="setReportDay(this.value)"><option value="">All days</option></select>
+          <button class="btn btn-ghost btn-sm" onclick="dlCSV()">Download CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="syncEvents()">Refresh</button>
+        </div>
+        <div id="report-list"><div class="empty">Waiting for events…</div></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:10px">Day/time comes from the ESP32 NTP clock (Asia/Manila). If the device was offline at boot, older rows show uptime until the clock syncs. Firmware endpoints: <span class="mono">/events/report?day=YYYY-MM-DD</span> · <span class="mono">/events/daily</span></div>
+      </div>
+    </div>
+
+    <!-- SYSTEM -->
+    <div class="page" id="page-system">
+      <div class="content-grid">
+        <div>
+          <div class="card"><div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 3h6v6h-6z"/><path d="M9 15h6v6h-6z"/><path d="M3 9h6v6h-6z"/><path d="M15 9h6v6h-6z"/></svg> Hardware</span></div>
+            <div class="hw-grid">
+              <div class="hw-item"><div><div class="hw-name">PIR Sensor</div><div class="hw-desc">GPIO 5 · Motion</div></div><span class="badge badge-green" id="hw-pir">ACTIVE</span></div>
+              <div class="hw-item"><div><div class="hw-name">Ultrasonic</div><div class="hw-desc">Trig 2 · Echo 1</div></div><span class="badge badge-green" id="hw-ultra">ACTIVE</span></div>
+              <div class="hw-item"><div><div class="hw-name">LED</div><div class="hw-desc">GPIO 41 · Alert</div></div><span class="badge badge-muted" id="hw-led">STANDBY</span></div>
+              <div class="hw-item"><div><div class="hw-name">Buzzer (loud siren)</div><div class="hw-desc">GPIO 42 → 1k → NPN → 5V buzzer</div></div><span class="badge badge-muted" id="hw-buzzer">STANDBY</span></div>
+            </div>
+          </div>
+          <div class="card"><div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 15a3 3 0 1 0 0 -6a3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06 .06a2 2 0 1 1 -2.83 2.83l-.06 -.06a1.65 1.65 0 0 0 -1.82 -.33a1.65 1.65 0 0 0 -1 1.51v.17a2 2 0 0 1 -4 0v-.17a1.65 1.65 0 0 0 -1 -1.51a1.65 1.65 0 0 0 -1.82 .33l-.06 .06a2 2 0 1 1 -2.83 -2.83l.06 -.06a1.65 1.65 0 0 0 .33 -1.82a1.65 1.65 0 0 0 -1.51 -1h-.17a2 2 0 0 1 0 -4h.17a1.65 1.65 0 0 0 1.51 -1a1.65 1.65 0 0 0 -.33 -1.82l-.06 -.06a2 2 0 1 1 2.83 -2.83l.06 .06a1.65 1.65 0 0 0 1.82 .33h.17a1.65 1.65 0 0 0 1 -1.51v-.17a2 2 0 0 1 4 0v.17a1.65 1.65 0 0 0 1 1.51a1.65 1.65 0 0 0 1.82 -.33l.06 -.06a2 2 0 1 1 2.83 2.83l-.06 .06a1.65 1.65 0 0 0 -.33 1.82v.17a1.65 1.65 0 0 0 1.51 1h.17a2 2 0 0 1 0 4h-.17a1.65 1.65 0 0 0 -1.51 1z"/></svg> Configuration</span></div>
+            <div class="setting-row"><div><div class="setting-label">Alert threshold</div><div class="setting-desc">Distance that triggers intrusion</div></div><div style="display:flex;align-items:center;gap:6px"><input class="setting-input" id="threshold-val" type="number" value="200" min="10" max="400" onchange="setThresholdVal(this.value)"><span style="font-size:11px;color:var(--muted)">cm</span></div></div>
+            <div class="setting-row"><div><div class="setting-label">Sound alert</div><div class="setting-desc">Buzzer on detection</div></div><button class="toggle" id="tog-sound" onclick="toggleSound(this)"></button></div>
+            <div class="setting-row"><div><div class="setting-label">Auto refresh</div><div class="setting-desc">Poll device every 3s</div></div><button class="toggle" id="tog-refresh"></button></div>
+          </div>
+          <div class="card"><div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2h-10a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2z"/><path d="M14 2v6a2 2 0 0 0 2 2h6"/><path d="M10 13h4"/><path d="M10 17h4"/></svg> Event management</span></div>
+            <div class="info-row"><span class="il">Stored events</span><span class="iv" id="mgr-total">--</span></div>
+            <div class="info-row"><span class="il">Last event</span><span class="iv" id="mgr-last">--</span></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn btn-ghost btn-sm" onclick="syncEvents();el('mgr-msg').innerText='Refreshed.'">Refresh</button>
+              <button class="btn btn-danger btn-sm" onclick="clearEventsUI()">Clear all</button>
+            </div>
+            <div id="mgr-msg" style="font-size:11px;color:var(--muted);margin-top:8px"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card"><div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12a7 7 0 0 1 7 -7"/><path d="M5 12a7 7 0 0 0 7 7"/><path d="M12 5a7 7 0 0 1 7 7"/><path d="M12 19a7 7 0 0 0 7 -7"/><path d="M5 12h14"/></svg> Connection</span></div>
+            <div class="info-row"><span class="il">Mode</span><span class="iv" id="dev-net">--</span></div>
+            <div class="info-row"><span class="il">ESP32 IP</span><span class="iv" id="dev-ip">--</span></div>
+            <div class="info-row"><span class="il">RSSI</span><span class="iv" id="dev-rssi">--</span></div>
+            <div class="info-row"><span class="il">Uptime</span><span class="iv" id="dev-up">--</span></div>
+            <div class="info-row"><span class="il">Intrusions</span><span class="iv" id="dev-count">--</span></div>
+            <div style="margin-top:12px"><div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Signal</div><div style="height:4px;background:#f1f5f9;border-radius:999px;overflow:hidden"><div id="rssi-bar" style="height:100%;transition:width 0.5s;width:0%;background:var(--ink)"></div></div></div>
+          </div>
+          <div class="card"><div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 4h11l3 3v11a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2z"/><path d="M9 12h6"/><path d="M9 16h6"/></svg> SMS alerts</span></div>
+            <div class="info-row"><span class="il">Status</span><span class="iv" id="sms-status">Idle</span></div>
+            <div class="info-row"><span class="il">HTTP code</span><span class="iv" id="sms-code">--</span></div>
+            <div class="info-row"><span class="il">Recipient</span><span class="iv">YOUR_PHONE_NUMBER</span></div>
+            <div class="info-row"><span class="il">Sender</span><span class="iv">PhilSMS</span></div>
+          </div>
+          <div class="card"><div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 4 10a15 15 0 0 1 -4 10a15 15 0 0 1 -4 -10a15 15 0 0 1 4 -10z"/></svg> Remote access</span></div>
+            <div style="display:flex;gap:8px"><input class="ip-input" id="settings-ip" type="text" placeholder="192.168.4.1" value="<?php echo $default_ip; ?>"><button class="btn" onclick="applyIPFromSettings()">Connect</button></div>
+            <div style="margin-top:10px;display:flex;align-items:center;gap:8px"><button class="toggle off" id="tog-debug" onclick="toggleDebug(this)"></button><span style="font-size:11px;color:var(--muted)">Show IP panel</span></div>
+          </div>
+          <div class="card"><div class="card-header"><span class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> About</span></div>
+            <div style="font-size:12px;color:var(--muted-2);line-height:1.6">
+              <strong style="color:var(--text)">S3-GUARD v2.1</strong><br>
+              ESP32-S3 · PIR + Ultrasonic · SD logging · SMS<br>
+              <span class="mono" style="font-size:10px">GPIO 41 · LED &nbsp; GPIO 42 · Buzzer</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Floating IP config -->
+<div id="ip-config" style="display:none;position:fixed;bottom:18px;right:18px;background:var(--surface);border:1px solid var(--border-strong);border-radius:12px;padding:12px 14px;z-index:9999;box-shadow:0 10px 30px rgba(15,23,42,0.12)">
+  <p style="font-size:11px;color:var(--muted-2);margin-bottom:8px">ESP32 IP address</p>
+  <div style="display:flex;gap:6px"><input id="esp-ip" type="text" placeholder="192.168.4.1" value="<?php echo $default_ip; ?>" style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;outline:none;font-family:'JetBrains Mono',monospace;width:132px"><button onclick="applyIP()" class="btn btn-sm">Go</button></div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, query, limitToLast, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_WEB_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.firebasestorage.app",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_FIREBASE_APP_ID"
+};
+let fbEnabled = true;
+try {
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // Live status — heartbeat for ONLINE/OFFLINE
+  onValue(ref(db, 'status'), (snap) => {
+    const d = snap.val();
+    if(!d) { checkHeartbeat(); return; }
+    window._fbActive = true;
+    window._lastContact = Date.now();
+    setOnline(true);
+    const b = Math.round(d.live_distance || 0);
+    const c = d.pir_triggered || false;
+    window._telData = window._telData || new Array(60).fill(null);
+    window._telData.push(b>=400?null:b); if(window._telData.length>60) window._telData.shift();
+    if(window.telChart) { window.telChart.data = window._telData; drawChart(window.telChart); }
+    el('kpi-count').innerText = d.total_intrusions || 0;
+    el('kpi-dist').innerHTML = b + ' <small>cm</small>';
+    el('kpi-up').innerText = fmtTime(d.uptime || 0);
+    el('radar-dist').innerText = b;
+    const pct = Math.max(0,Math.min(100,100-b/400*100));
+    const fill = el('radar-fill');
+    fill.style.height = pct+'%';
+    fill.style.background = b<=(window.threshold||200) ? '#dc2626' : '#0f172a';
+    el('pir-status').innerText = c?'TRIGGERED':'CLEAR';
+    el('pir-status').className = 'v '+(c?'bad':'ok');
+    el('zone-status').innerText = b < (window.threshold||200) ? 'BREACH':'SAFE';
+    el('zone-status').className = 'v '+(b < (window.threshold||200) ? 'bad':'ok');
+    const e = el('alert-banner');
+    if(c){ e.classList.add('show'); el('banner-meta').innerText='Object at '+b+' cm'; } else e.classList.remove('show');
+    el('hw-led').className = 'badge '+(c?'badge-red':'badge-muted'); el('hw-led').innerText=c?'TRIGGERED':'STANDBY';
+    el('hw-buzzer').className = 'badge '+(c?'badge-red':'badge-muted'); el('hw-buzzer').innerText=c?'ACTIVE':'STANDBY';
+    el('dev-net')&&(el('dev-net').innerText='Cloud · Firebase');
+    el('dev-ip')&&(el('dev-ip').innerText='Firebase');
+    el('dev-rssi')&&(el('dev-rssi').innerText='Connected');
+    el('dev-up')&&(el('dev-up').innerText=fmtTime(d.uptime||0));
+    el('dev-count')&&(el('dev-count').innerText=d.total_intrusions||0);
+    el('live-hint')&&(el('live-hint').innerText='live · Firebase');
+  });
+
+  // Events — also drives alert banner so file:// shows intrusion even without status
+  onValue(query(ref(db, 'events'), limitToLast(80)), (snap)=>{
+    const data = snap.val();
+    if(!data) return;
+    window._fbActive = true;
+    window._lastContact = Date.now();
+    setOnline(true);
+    const arr = Object.keys(data).map(k=>({id:k, ...data[k]}));
+    // normalize firebase shape to dashboard shape
+    const mapped = arr.map(e=>{
+      const dd = parseFloat(e.distance ?? e.dist ?? 0);
+      return {
+      id: e.id || parseInt(e.id) || Date.now(),
+      u: e.uptime || 0,
+      d: dd,
+      p: !!e.pir,
+      s: e.sev || (dd<60?'H':dd<130?'M':'L'),
+      t: e.type || 'I',
+      dt: e.datetime || e.dt || '', date: e.date || '', time: e.time || '', day: e.day || '', epoch: e.epoch || 0
+      };
+    }).sort((a,b)=> b.id - a.id);
+    serverEvents = mapped;
+    renderEventLog();
+    // update analytics from mapped
+    const stats = calcStats(mapped);
+    serverStats = stats;
+    renderStats();
+    // Trigger alert banner from latest event if recent (<10s) and within threshold
+    if(mapped.length){
+      const latest = mapped[0];
+      const isRecent = (Date.now() - parseInt(latest.id)) < 10000 || latest.u > (window._lastUptime||0) + 0.1;
+      window._lastUptime = latest.u;
+      if(latest.d <= (window.threshold||200) && latest.t !== 'M'){
+        const banner = el('alert-banner');
+        banner.classList.add('show');
+        el('banner-meta').innerText = 'Intrusion at ' + Math.round(latest.d) + ' cm — ' + (latest.p ? 'PIR & ultrasonic' : 'ultrasonic');
+        clearTimeout(window._alertHide);
+        window._alertHide = setTimeout(()=> banner.classList.remove('show'), 6000);
+        setOnline(true);
+      }
+    }
+  });
+
+  // SMS via browser (optional)
+  const SMS_TOKEN = "YOUR_PHILSMS_API_TOKEN";
+  const SMS_TO = "YOUR_PHONE_NUMBER";
+  let initialLoad = true;
+  onChildAdded(query(ref(db, 'events'), limitToLast(1)), (data)=>{
+    if(initialLoad) return;
+    const vv = data.val() || {};
+    const dist = Math.round(vv.distance ?? vv.dist ?? 0);
+    const when = vv.datetime ? ` on ${vv.datetime} (${vv.day||''})` : '';
+    const msg = `S3-GUARD ALERT! Intrusion at ${dist} cm${when}.`;
+    const sEl = el('sms-status');
+    if(sEl){ sEl.innerText='Sending...'; sEl.style.color='var(--orange)'; el('sms-code').innerText='--'; }
+    fetch('https://dashboard.philsms.com/api/v3/sms/send', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+SMS_TOKEN,'Content-Type':'application/json','Accept':'application/json'},
+      body: JSON.stringify({recipient:SMS_TO,sender_id:"PhilSMS",type:"plain",message:msg})
+    }).then(r=>{
+      if(sEl){ el('sms-code').innerText=r.status; sEl.innerText=r.ok?'Sent':'Failed'; sEl.style.color=r.ok?'var(--green)':'var(--red)'; }
+    }).catch(()=>{
+      if(sEl){ el('sms-code').innerText='Network Error'; sEl.innerText='Failed'; sEl.style.color='var(--red)'; }
+    });
+  });
+  setTimeout(()=>{ initialLoad=false; }, 2200);
+
+} catch(e) {
+  fbEnabled = false;
+  console.warn('Firebase disabled', e);
+}
+window._fbActive = false;
+// fallback polling will take over if firebase not active
+setTimeout(()=>{ if(!window._fbActive) { el('live-hint')&&(el('live-hint').innerText='polling · local'); } }, 2500);
+</script>
+
+<script>
+var ESP_IP = '';
+var urlParams = new URLSearchParams(window.location.search);
+var qip = urlParams.get('ip') || urlParams.get('esp') || '';
+if(qip) { ESP_IP = qip.indexOf('http')===0?qip:'http://'+qip; el('ip-config').style.display='block'; el('esp-ip').value=qip.replace(/^https?:\/\//,''); if(el('settings-ip')) el('settings-ip').value=qip.replace(/^https?:\/\//,''); }
+else if(window.location.hostname==='192.168.4.1'||window.location.hostname===''){ ESP_IP=''; }
+else if(window.location.protocol==='file:'){ ESP_IP='http://192.168.4.1'; }
+else { /* keep hidden by default, show via toggle */ }
+
+var serverEvents=[],serverStats=null,threshold=200,soundOn=true,currentFilter='all',reportDayFilter='';
+window.threshold = threshold;
+var distHistory=[];
+var _telData = new Array(60).fill(null);
+window._lastContact = 0;
+window._isOnline = false;
+setOnline(false);
+
+function el(a){return document.getElementById(a)}
+function fmtTime(a){ if(a<60) return Math.floor(a)+'s'; if(a<3600) return Math.floor(a/60)+'m '+(Math.floor(a)%60)+'s'; return Math.floor(a/3600)+'h '+Math.floor((a%3600)/60)+'m'; }
+function sevLabel(a){ return a==='H'?'High':a==='M'?'Medium':'Low'; }
+function sevCls(a){ return a==='H'?'badge-red':a==='M'?'badge-amber':'badge-green'; }
+
+function makeChart(a,b,c){ var d=document.getElementById(a),e=d.getContext('2d'); return {canvas:d,ctx:e,data:new Array(60).fill(null),label:b,color:c} }
+var telChart=makeChart('telemetry-chart','Distance','#0f172a'), anaChart=makeChart('analytics-chart','Distance','#0f172a');
+window.telChart=telChart; window._telData=_telData;
+
+function drawChart(a){
+  var b=a.canvas,c=a.ctx,d=a.data,e=a.color,f=window.devicePixelRatio||1,g=b.parentElement;
+  b.width=g.clientWidth*f; b.height=g.clientHeight*f; c.scale(f,f);
+  var h=g.clientWidth,i=g.clientHeight; c.clearRect(0,0,h,i);
+  var j=d.filter(function(a){return a!==null});
+  if(j.length<2){ c.fillStyle='#94a3b8'; c.font='11px Inter, sans-serif'; c.textAlign='center'; c.fillText('Waiting for data…',h/2,i/2); return; }
+  var k=Math.max.apply(null,j.concat([100])),l=h/(d.length-1);
+  c.strokeStyle='#f1f5f9'; c.lineWidth=1;
+  for(var m=0;m<=4;m++){ var n=i-(m/4)*(i-20)-10; c.beginPath(); c.moveTo(0,n); c.lineTo(h,n); c.stroke(); }
+  var o=c.createLinearGradient(0,0,0,i); o.addColorStop(0,e+'18'); o.addColorStop(1,'transparent');
+  c.beginPath(); var p=!1;
+  d.forEach(function(a,b){ if(a===null) return; var f=b*l,g=i-(a/k)*(i-20)-10; if(!p){ c.moveTo(f,i); c.lineTo(f,g); p=!0; } else c.lineTo(f,g); });
+  c.lineTo((d.length-1)*l,i); c.closePath(); c.fillStyle=o; c.fill();
+  c.beginPath(); p=!1;
+  d.forEach(function(a,b){ if(a===null) return; var f=b*l,g=i-(a/k)*(i-20)-10; if(!p){ c.moveTo(f,g); p=!0; } else c.lineTo(f,g); });
+  c.strokeStyle=e; c.lineWidth=1.8; c.lineJoin='round'; c.lineCap='round'; c.stroke();
+}
+
+// Polling fallback (works when Firebase offline or for local ESP)
+function update(){
+  if(window._fbActive && (Date.now() - window._lastContact < 6000)) return; // Firebase is driving UI and alive
+  var url = (ESP_IP||'') + '/status';
+  // allow local file testing without ESP
+  if(!ESP_IP && window.location.protocol==='file:') return;
+  fetch(url).then(function(a){ if(!a.ok) throw 0; return a.json(); }).then(function(a){
+    window._lastContact = Date.now();
+    window._fbActive = false;
+    setOnline(true);
+    var b=Math.round(a.dist), c=a.motion===true||a.motion==='true', pir=a.pir===true||a.pir==='true';
+    if(a.threshold!==undefined){ threshold=a.threshold; window.threshold=threshold; el('threshold-val').value=threshold; }
+    if(a.sound!==undefined){ soundOn=a.sound===true||a.sound==='true'; var t=el('tog-sound'); if(t){ if(soundOn) t.classList.remove('off'); else t.classList.add('off'); } }
+    _telData.push(b>=400?null:b); if(_telData.length>60) _telData.shift();
+    telChart.data=_telData.slice();
+    distHistory.push(b); if(distHistory.length>500) distHistory.shift();
+    el('kpi-count').innerText=a.count;
+    el('kpi-dist').innerHTML=b+' <small>cm</small>';
+    el('kpi-up').innerText=fmtTime(a.uptime);
+    if(a.net&&a.net==='online'){ el('kpi-rssi').innerHTML='<span style="font-size:13px;font-weight:600">Internet</span>'; el('kpi-rssi-sub').innerText=a.rssi+' dBm'; }
+    else { el('kpi-rssi').innerText='Local'; el('kpi-rssi-sub').innerText='AP mode'; }
+    el('radar-dist').innerText=b;
+    var pct=Math.max(0,Math.min(100,100-b/400*100));
+    var fill=el('radar-fill'); fill.style.height=pct+'%'; fill.style.background=b<=threshold?'#dc2626':'#0f172a';
+    el('pir-status').innerText=pir?'TRIGGERED':'CLEAR'; el('pir-status').className='v '+(pir?'bad':'ok');
+    el('zone-status').innerText=b<=threshold?'BREACH':'SAFE'; el('zone-status').className='v '+(b<=threshold?'bad':'ok');
+    var e=el('alert-banner'); if(c){ e.classList.add('show'); if(pir&&b<=threshold) el('banner-meta').innerText='PIR & ultrasonic at '+b+' cm'; else if(pir) el('banner-meta').innerText='PIR motion detected'; else el('banner-meta').innerText='Ultrasonic object at '+b+' cm'; } else e.classList.remove('show');
+    if(a.sms!==void 0) updateSMS(a);
+    el('hw-pir').className='badge '+(pir?'badge-red':'badge-green'); el('hw-pir').innerText=pir?'DETECTED':'ACTIVE';
+    el('hw-ultra').className='badge '+(b<=threshold?'badge-red':'badge-green'); el('hw-ultra').innerText=b<=threshold?'NEAR':'ACTIVE';
+    el('hw-led').className='badge '+(c?'badge-red':'badge-muted'); el('hw-led').innerText=c?'TRIGGERED':'STANDBY';
+    el('hw-buzzer').className='badge '+(c?'badge-red':'badge-muted'); el('hw-buzzer').innerText=c?'ACTIVE':'STANDBY';
+    if(a.ip) el('dev-ip').innerText=a.ip; else if(ESP_IP) el('dev-ip').innerText=ESP_IP.replace('http://','');
+    el('dev-net').innerText=a.net==='online'?'Online · Internet':'Local · AP';
+    el('dev-rssi').innerText=a.rssi? a.rssi+' dBm' : '--';
+    el('dev-up').innerText=fmtTime(a.uptime);
+    el('dev-count').innerText=a.count;
+    // rssi bar: map -90..-30 to 10..100%
+    if(a.rssi){ var r=parseInt(a.rssi); var w=Math.max(8,Math.min(100, ((r+90)/60)*100 )); el('rssi-bar').style.width=w+'%'; el('rssi-bar').style.background = r>-60?'#059669': r>-75?'#d97706':'#dc2626'; }
+    el('live-hint').innerText='live · '+(ESP_IP? ESP_IP.replace('http://','') : 'local');
+    drawChart(telChart);
+  }).catch(function(){ /* keep last state, don't flicker offline instantly */
+    // only mark offline after repeated fails
+  });
+}
+
+function setThresholdVal(v){ threshold=parseFloat(v)||200; window.threshold=threshold; if(ESP_IP) fetch(ESP_IP+'/threshold?val='+threshold,{method:'POST'}).catch(function(){}) }
+function fmtDT(a){ if(a.dt&&a.dt.length) return a.dt+((a.day&&a.day.length)?' ('+a.day+')':''); if(a.date&&a.date.length) return a.date+' '+(a.time||''); return 'Up '+fmtTime(a.u); }
+function evWhen(a){ return fmtDT(a)+' · ID '+a.id; }
+function toggleSound(btn){ btn.classList.toggle('off'); var en=!btn.classList.contains('off'); if(ESP_IP) fetch(ESP_IP+'/sound?enable='+en,{method:'POST'}).catch(function(){}) }
+function updateSMS(a){
+  var s=el('sms-status'),c=el('sms-code'),b=el('banner-sms');
+  if(a.sms===1){ s.innerText='Sending…'; s.style.color='var(--orange)'; b.style.display='none'; }
+  else if(a.sms===2){ s.innerText='Sent'; s.style.color='var(--green)'; c.innerText=a.smsCode; b.innerText='SMS sent'; b.style.display='inline-flex'; b.className='badge-sms show badge-green'; }
+  else if(a.sms===3){ s.innerText='Failed'; s.style.color='var(--red)'; c.innerText=a.smsCode; b.innerText='SMS failed'; b.style.display='inline-flex'; b.className='badge-sms show badge-red'; }
+  else { s.innerText='Idle'; s.style.color='var(--muted-2)'; c.innerText='--'; b.style.display='none'; }
+}
+function calcStats(arr){
+  var total=arr.length, high=0,med=0,low=0,intrusions=0,motions=0;
+  var peak=-1,min=1e9,sum=0;
+  arr.forEach(function(e){ if(e.d>peak) peak=e.d; if(e.d<min) min=e.d; sum+=e.d; if(e.s==='H') high++; else if(e.s==='M') med++; else low++; if(e.t!=='M') intrusions++; else motions++; });
+  return {total:total, high:high, medium:med, low:low, intrusions:intrusions, motions:motions, peak: peak<0?0:peak, min: total?min:0, avg: total? sum/total:0, lastUptime: total? arr[0].u:0};
+}
+function syncEvents(){
+  if(window._fbActive) return;
+  if(!ESP_IP && window.location.protocol==='file:') return;
+  fetch((ESP_IP||'')+'/events').then(function(a){return a.json()}).then(function(a){ serverEvents=a; renderEventLog(); }).catch(function(){});
+  fetch((ESP_IP||'')+'/events/stats').then(function(a){return a.json()}).then(function(a){ serverStats=a; renderStats(); }).catch(function(){});
+}
+function renderEventLog(){ renderRecent(serverEvents); renderHistory(serverEvents); renderReports(); }
+function renderRecent(a){
+  var b=el('recent-list'),c=el('recent-empty'),n=el('landing-count');
+  n.innerText=a.length+' events';
+  if(!a.length){ b.innerHTML=''; c.style.display='block'; return; }
+  c.style.display='none'; b.innerHTML='';
+  a.slice(0,18).forEach(function(e){
+    var col = e.s==='H'?'#dc2626': e.s==='M'?'#d97706':'#059669';
+    var icon = (e.t==='B'||e.t==='I') ? '<svg viewBox="0 0 24 24" fill="none" stroke="'+col+'" stroke-width="1.8"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.3l-6.4 11.1a2 2 0 0 0 1.7 3h12.8a2 2 0 0 0 1.7 -3l-6.4 -11.1a2 2 0 0 0 -3.4 0z"/></svg>' : (e.t==='U' ? '<svg viewBox="0 0 24 24" fill="none" stroke="'+col+'"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 0 1 7 17"/><path d="M12 2a10 10 0 0 0 -7 17"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="'+col+'"><path d="M1 12s4 -7 11 -7s11 7 11 7s-4 7 -11 7s-11 -7 -11 -7z"/><circle cx="12" cy="12" r="3"/></svg>');
+    var title = e.t==='B' ? 'Intrusion · '+Math.round(e.d)+' cm' : (e.t==='U' ? 'Ultrasonic · '+Math.round(e.d)+' cm' : (e.t==='P' ? 'PIR motion' : (e.t==='I' ? 'Intrusion · '+Math.round(e.d)+' cm' : 'Motion · '+Math.round(e.d)+' cm')));
+    var meta = evWhen(e);
+    b.innerHTML += '<div class="history-item"><div class="h-icon">'+icon+'</div><div class="h-body"><div class="h-title">'+title+'</div><div class="h-meta">'+meta+'</div></div><div class="h-right"><span class="badge '+sevCls(e.s)+'">'+sevLabel(e.s)+'</span></div></div>';
+  });
+}
+function renderHistory(a){
+  var b=el('history-list'); el('history-count').innerText=a.length+' events';
+  var c=a; if(currentFilter!=='all') c=a.filter(function(e){ return sevLabel(e.s)===currentFilter; });
+  if(c.length===0){ b.innerHTML='<div class="empty">No '+(currentFilter==='all'?'':'matching ')+'events.</div>'; return; }
+  b.innerHTML='';
+  c.slice(0,80).forEach(function(e){
+    var col = e.s==='H'?'#dc2626': e.s==='M'?'#d97706':'#059669';
+    var icon = (e.t==='B'||e.t==='I') ? '<svg viewBox="0 0 24 24" fill="none" stroke="'+col+'" stroke-width="1.8"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.3l-6.4 11.1a2 2 0 0 0 1.7 3h12.8a2 2 0 0 0 1.7 -3l-6.4 -11.1a2 2 0 0 0 -3.4 0z"/></svg>' : (e.t==='U' ? '<svg viewBox="0 0 24 24" fill="none" stroke="'+col+'"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 0 1 7 17"/><path d="M12 2a10 10 0 0 0 -7 17"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="'+col+'"><path d="M1 12s4 -7 11 -7s11 7 11 7s-4 7 -11 7s-11 -7 -11 -7z"/><circle cx="12" cy="12" r="3"/></svg>');
+    var title = e.t==='B' ? 'Intrusion · '+Math.round(e.d)+' cm' : (e.t==='U' ? 'Ultrasonic · '+Math.round(e.d)+' cm' : (e.t==='P' ? 'PIR motion' : (e.t==='I' ? 'Intrusion · '+Math.round(e.d)+' cm' : 'Motion · '+Math.round(e.d)+' cm')));
+    var meta = evWhen(e);
+    b.innerHTML += '<div class="history-item"><div class="h-icon">'+icon+'</div><div class="h-body"><div class="h-title">'+title+'</div><div class="h-meta">'+meta+'</div></div><div class="h-right"><span class="badge '+sevCls(e.s)+'">'+sevLabel(e.s)+'</span></div></div>';
+  });
+}
+function filterHistory(a,b){ currentFilter=a; document.querySelectorAll('.filter-bar button').forEach(function(x){x.classList.remove('active')}); if(b) b.classList.add('active'); else document.querySelector('.filter-bar [data-filter="'+a+'"]').classList.add('active'); renderHistory(serverEvents); }
+function dayOf(a){ return (a.date&&a.date.length)?a.date:((a.dt&&a.dt.length)?a.dt.slice(0,10):'unsynced'); }
+function renderReports(){
+  var daySel=el('report-day'); if(!daySel) return;
+  var groups={};
+  serverEvents.forEach(function(e){ var d=dayOf(e); groups[d]=(groups[d]||0)+1; });
+  var days=Object.keys(groups).sort().reverse();
+  var cur=daySel.value;
+  daySel.innerHTML='<option value="">All days ('+serverEvents.length+')</option>'+days.map(function(d){ return '<option value="'+d+'"'+(d===cur?' selected':'')+'>'+d+' — '+groups[d]+' events</option>'; }).join('');
+  if(reportDayFilter && days.indexOf(reportDayFilter)<0) reportDayFilter='';
+  var list=serverEvents.filter(function(e){ return (!reportDayFilter||dayOf(e)===reportDayFilter) && (currentFilter==='all'||sevLabel(e.s)===currentFilter); });
+  el('report-count').innerText=list.length+' events'+(reportDayFilter?' on '+reportDayFilter:'');
+  var box=el('report-list');
+  if(!list.length){ box.innerHTML='<div class="empty">No events for this day.</div>'; return; }
+  var html='<div class="table-wrap"><table><tr><th>Date</th><th>Day</th><th>Time</th><th>Distance</th><th>Type</th><th>Severity</th></tr>';
+  list.slice(0,120).forEach(function(e){
+    html+='<tr><td class="mono">'+(e.date||(e.dt?e.dt.slice(0,10):'--'))+'</td><td>'+(e.day||'--')+'</td><td class="mono">'+(e.time||(e.dt?e.dt.slice(11):'up '+fmtTime(e.u)))+'</td><td class="mono">'+Math.round(e.d)+' cm</td><td>'+e.t+'</td><td><span class="badge '+sevCls(e.s)+'">'+sevLabel(e.s)+'</span></td></tr>';
+  });
+  box.innerHTML=html+'</table></div>';
+}
+function setReportDay(v){ reportDayFilter=v||''; renderReports(); }
+function dlCSV(){ var rows=[['id','datetime','day','date','time','distance_cm','pir','severity','type']]; var list=serverEvents.filter(function(e){ return !reportDayFilter||dayOf(e)===reportDayFilter; }); list.forEach(function(a){ rows.push([a.id,'"'+(a.dt||'')+'"',a.day||'',a.date||'',a.time||'',Math.round(a.d),a.p?'1':'0',sevLabel(a.s),a.t]); }); var csv=rows.map(function(r){return r.join(',')}).join('\n'); var b=new Blob([csv],{type:'text/csv'}); var u=URL.createObjectURL(b); var l=document.createElement('a'); l.href=u; l.download='s3-guard-report'+(reportDayFilter?'-'+reportDayFilter:'')+'.csv'; l.click(); setTimeout(function(){URL.revokeObjectURL(u)},2000); }
+function renderStats(){
+  if(!serverStats){ el('stats-summary').innerHTML='<div class="empty">Collecting data…</div>'; return; }
+  var s=serverStats;
+  el('an-peak').innerHTML=(s.peak? Number(s.peak).toFixed(1) : '--')+'<small>cm</small>';
+  el('an-min').innerHTML=(s.min? Number(s.min).toFixed(1) : '--')+'<small>cm</small>';
+  el('an-avg').innerHTML=(s.avg? Number(s.avg).toFixed(1) : '--')+'<small>cm</small>';
+  anaChart.data = serverEvents.slice(0,60).map(function(a){return a.d}).reverse();
+  while(anaChart.data.length<60) anaChart.data.unshift(null);
+  drawChart(anaChart);
+  el('mgr-total').innerText=s.total;
+  el('mgr-last').innerText=s.total? fmtTime(s.lastUptime) : '--';
+  el('stats-summary').innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center">'+
+    '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px 8px"><div style="font-size:18px;font-weight:700;color:var(--red)">'+s.high+'</div><div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)">High</div></div>'+
+    '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px 8px"><div style="font-size:18px;font-weight:700;color:var(--orange)">'+s.medium+'</div><div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)">Medium</div></div>'+
+    '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px 8px"><div style="font-size:18px;font-weight:700;color:var(--green)">'+s.low+'</div><div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)">Low</div></div></div>'+
+    '<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px;font-size:12px">'+
+    '<div style="display:flex;justify-content:space-between"><span style="color:var(--muted-2)">Intrusions (alarm)</span><strong>'+s.intrusions+'</strong></div>'+
+    '<div style="display:flex;justify-content:space-between"><span style="color:var(--muted-2)">Motions (out of range)</span><strong>'+s.motions+'</strong></div>'+
+    '<div style="display:flex;justify-content:space-between"><span style="color:var(--muted-2)">Total events</span><strong>'+s.total+'</strong></div>'+
+    '<div style="display:flex;justify-content:space-between"><span style="color:var(--muted-2)">Min / Peak</span><strong>'+Number(s.min).toFixed(1)+' / '+Number(s.peak).toFixed(1)+' cm</strong></div></div>';
+}
+function clearEventsUI(){
+  if(!confirm('Clear all '+serverEvents.length+' events?')) return;
+  if(window._fbActive){ alert('Clear from Firebase console — local clear is disabled in cloud mode.'); return; }
+  fetch((ESP_IP||'')+'/events/clear',{method:'POST'}).then(function(a){return a.json()}).then(function(){ serverEvents=[]; serverStats=null; el('kpi-count').innerText='0'; renderEventLog(); renderStats(); syncEvents(); }).catch(function(){ serverEvents=[]; renderEventLog(); renderStats(); });
+}
+function setOnline(a){
+  window._isOnline = !!a;
+  var b=el('top-status'),c=el('side-dot');
+  if(a){ b.className='status'; b.innerHTML='<span class="pill"></span><span id="status-text">ONLINE</span>'; c.className='dot'; c.title='Online'; }
+  else { b.className='status off'; b.innerHTML='<span class="pill"></span><span id="status-text">OFFLINE</span>'; c.className='dot off'; c.title='Offline'; }
+}
+function checkHeartbeat(){
+  if(Date.now() - window._lastContact > 6000){
+    if(window._isOnline) setOnline(false);
+    // allow local polling to take over when Firebase stalls
+    window._fbActive = false;
+    if(el('live-hint')) el('live-hint').innerText = 'offline — no data';
+  }
+}
+function showPage(a,b){
+  document.querySelectorAll('.page').forEach(function(x){x.classList.remove('active')});
+  document.getElementById('page-'+a).classList.add('active');
+  document.querySelectorAll('.sidebar .nav-item').forEach(function(x){x.classList.remove('active')});
+  if(b) b.classList.add('active');
+  var titles={dashboard:['Dashboard','Live monitoring & recent activity'], history:['History','Event timeline & filters'], analytics:['Analytics','Distance trends & statistics'], reports:['Reports','Detections grouped by day & time'], system:['System','Hardware, config & connection']};
+  if(titles[a]){ el('page-title').innerText=titles[a][0]; el('page-sub').innerText=titles[a][1]; }
+  if(window.innerWidth<=700){ document.querySelector('.sidebar').classList.remove('open'); el('hamburger').classList.remove('open'); el('sidebar-overlay').classList.remove('show'); }
+  // redraw charts after tab switch
+  setTimeout(function(){ drawChart(telChart); drawChart(anaChart); }, 40);
+}
+function applyIP(){ var a=el('esp-ip').value.trim(); if(a.indexOf('http')!==0) a='http://'+a; ESP_IP=a; if(el('settings-ip')) el('settings-ip').value=el('esp-ip').value.trim(); window._fbActive=false; update(); syncEvents(); }
+function applyIPFromSettings(){ var a=el('settings-ip').value.trim(); if(a.indexOf('http')!==0) a='http://'+a; ESP_IP=a; el('esp-ip').value=el('settings-ip').value.trim(); window._fbActive=false; update(); syncEvents(); }
+function toggleDebug(a){ a.classList.toggle('off'); el('ip-config').style.display=a.classList.contains('off')?'none':'block'; }
+function toggleSidebar(){ var a=document.querySelector('.sidebar'),b=el('sidebar-overlay'),c=el('hamburger'); a.classList.toggle('open'); c.classList.toggle('open'); b.classList.toggle('show'); }
+function updateClock(){ el('clock').innerText=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' · '+new Date().toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}); }
+window.addEventListener('resize', function(){ drawChart(telChart); drawChart(anaChart); });
+setInterval(update, 900);
+setInterval(updateClock,1000);
+setInterval(function(){ if(!window._fbActive || (Date.now() - window._lastContact > 6000)) syncEvents(); }, 3000);
+setInterval(checkHeartbeat, 2000);
+updateClock(); update(); syncEvents(); checkHeartbeat();
+// initial chart draw
+setTimeout(function(){ drawChart(telChart); drawChart(anaChart); }, 200);
+</script>
+</body>
+</html>
