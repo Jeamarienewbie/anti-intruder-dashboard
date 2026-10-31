@@ -84,7 +84,7 @@ To re-enable PIR detection, set `USE_PIR = true` in `anti-intruder.ino`.
 
 ## How it works
 
-1. **Boot.** The ESP32 starts an Wi-Fi Access Point named `S3-GUARD-PRO` and simultaneously
+1. **Boot.** The ESP32 starts a Wi-Fi Access Point named `S3-GUARD-PRO` and simultaneously
    tries to join a home Wi-Fi network for internet access. Sensors are initialised, the LED
    and buzzer are forced off, and the SD card is mounted.
 2. **Time sync.** If the internet is reachable, the clock is synchronised over NTP
@@ -278,8 +278,8 @@ These values are intentionally **not** committed. Replace them with your own bef
 
 ## Security notes
 
-- **Change the Access Point password.** The AP is open to anyone in radio range who knows the
-  password, and the dashboard has no login.
+- **Change the Access Point password.** Anyone within radio range who has the password can
+  reach the dashboard, and the dashboard has no login.
 - **Never commit real credentials.** All tokens, passwords, and project IDs in this repository
   are placeholders. Keep your own values local and out of version control.
 - **Secure your Firebase rules.** A public Realtime Database with open rules lets anyone read
